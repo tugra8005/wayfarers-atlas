@@ -1,5 +1,7 @@
 # AtlasRoute
 
+**Yazarlar:** Alparslan Tuğra ŞAHİN, Abdülbaki BAYIR, Seyyid Abdülbaki BOZKURT
+
 Savaş hocanın **Atlas** algoritmasından ([savastakan/atlas](https://github.com/savastakan/atlas), `1748ccf`) yola çıkan, World of Warcraft için yol planlayıcı. Yürüme, uçuş noktaları (flight path), gemi, zeplin, Deeprun Tram, büyücü ışınlanmaları ve hearthstone'u bir arada hesaba katar.
 
 İki problem çözülüyor:
@@ -179,10 +181,10 @@ luajit tools/plan.lua horde valanaar shaman engineer flier
 
 Bayraklar: `mage`, `druid`, `shaman`, `engineer` (iki mühendislik aleti çantada), `nohearth`, `flier`, `beta`.
 
-Java ile karşılaştırma (Java derleyicisi gerekir):
+Java ile karşılaştırma (Java derleyicisi gerekir; Atlas'ın Java kodu bu depoda yok, `reference/README.md`'deki gibi kendi deposundan alınır):
 
 ```bash
-javac -d /tmp/jref reference/java/*.java && luajit tools/compare_java.lua /tmp/jref reference/fsm/bbtas.kiss2.fsm
+javac -d /tmp/jref /tmp/atlas/*.java reference/java/RefMain.java && luajit tools/compare_java.lua /tmp/jref tests/fixtures/bbtas.fsm
 ```
 
 Rastgele FSM üretmek: `luajit tools/gen_fsm.lua <durum> <girdi> <çıktı> <tohum> [strong]`. Atlas'ın kullandığı `fsm-gen-fsm` aracı depoda yok; bu onun yerine yazıldı.
@@ -201,7 +203,7 @@ AtlasRoute/            eklenti (WoW'a kopyalanacak klasör)
   core/coverage.lua    ağırlıklı Atlas, Kırsal Postacı kurgusu
   data/                harita ve örnek görevler
   ui/addon.lua         oyun içi komutlar
-reference/             hocanın Java kodu (değiştirilmedi) + RefMain.java
+reference/             Atlas'ın Java koduna bağlantı + RefMain.java (karşılaştırma için)
 tests/                 testler ve Java çıktıları
 tools/                 yükleyici, ölçüm, Java karşılaştırması, FSM üretici, komut satırı demosu
 ```
