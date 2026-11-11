@@ -89,7 +89,7 @@ Alt sınır, gerekli kenarların ağırlıkları toplamıdır. Ağırlıklı Atl
 
 ## Tanıtım sayfası
 
-`web/AtlasRoute.html` oyuna gerek kalmadan planlayıcıyı haritada gösterir. Tek bir dosyadır, tarayıcıda açmak yeter (ilk açılışta internet gerekir: wasmoon Lua VM'i cdn.jsdelivr.net'ten, yazı tipleri Google Fonts'tan gelir).
+**Wayfarer's Atlas** (`web/AtlasRoute.html`) oyuna gerek kalmadan planlayıcıyı haritada gösterir. Tek bir dosyadır, tarayıcıda açmak yeter (ilk açılışta internet gerekir: wasmoon Lua VM'i cdn.jsdelivr.net'ten, yazı tipleri Google Fonts'tan gelir).
 
 - Sayfadaki bütün sayılar eklentinin kendi Lua kodundan gelir. `core/` ve `data/` dosyaları, köprü `web/bridge.lua` ile birlikte sayfanın içine gömülür ve tarayıcıda wasmoon (Lua 5.4, WebAssembly) ile, bir Web Worker'da çalışır. Lua 5.4'te `bit` kütüphanesi olmadığı için sayfa onu `&`, `|`, `<<` ile tanımlar; çıktılar LuaJIT'teki komut satırı demosuyla aynıdır.
 - **Plan a journey:** fraksiyon, sınıf, başlangıç, hearthstone, binek, mühendislik aletleri, Frequent Flier ve beta yolları seçilir; görevler işaretlenir. Rota haritaya bacak bacak mürekkeple çizilir, her kip kendi çizgisiyle.
@@ -102,6 +102,12 @@ Kaynak `web/template.html`'dir; değiştirdikten sonra sayfayı yeniden üretin:
 
 ```bash
 luajit tools/build_web.lua
+```
+
+claude.ai'da yayımlanacak kopya (sarmalayıcı etiketler olmadan; `glue.wasm` sayfanın yanında yayımlanır, çünkü orada CDN'den yalnızca betik yüklenebilir):
+
+```bash
+luajit tools/build_web.lua artifact <klasör>
 ```
 
 ## Oyuna kurulum

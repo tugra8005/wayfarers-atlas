@@ -3,12 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AtlasRoute</title>
+<title>Wayfarer's Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,500;0,700;1,400&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
 <style>
 :root {
+  color-scheme: dark; /* one deliberate look: parchment on a dark desk, same in either theme */
   --desk: #2b1b11;
   --desk-hi: #4a2f1c;
   --parch: #ead8ab;
@@ -35,6 +37,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
+  background-color: var(--desk);
   background:
     radial-gradient(120% 80% at 50% 0%, var(--desk-hi) 0%, var(--desk) 55%, #1d120b 100%);
   color: var(--parch);
@@ -48,7 +51,8 @@ button, select, input { font: inherit; }
 
 /* ---------- header ---------- */
 .top {
-  max-width: 1440px; margin: 0 auto; padding: 22px 24px 6px;
+  max-width: 1440px; margin: 0 auto; padding-block: 22px 6px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap;
 }
 .top h1 {
@@ -67,10 +71,12 @@ button, select, input { font: inherit; }
 
 /* ---------- layout ---------- */
 .stage {
-  max-width: 1440px; margin: 0 auto; padding: 0 24px 28px;
+  max-width: 1440px; margin: 0 auto; padding-block: 0 28px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr); gap: 22px;
 }
-@media (max-width: 980px) { .stage { grid-template-columns: 1fr; padding: 0 12px 20px; } .top { padding: 16px 12px 4px; } .top h1 { font-size: 36px; } .tabs { margin-left: 0; } }
+.stage > * { min-width: 0; }
+@media (max-width: 980px) { .stage { grid-template-columns: 1fr; padding-block: 0 20px; } .top { padding-block: 16px 4px; } .top h1 { font-size: 36px; } .tabs { margin-left: 0; } }
 
 /* ---------- the map ---------- */
 .mapwrap {
@@ -252,7 +258,8 @@ table.cmp td:first-child { font-style: italic; }
 table.cmp tr.on td { background: rgba(184,144,47,.18); }
 table.cmp button { background: none; border: 1px solid #8a6a3a; color: var(--ink); cursor: pointer; padding: 1px 8px; border-radius: 2px; }
 .note { font-size: 14.5px; color: var(--ink-soft); }
-footer { max-width: 1440px; margin: 0 auto; padding: 0 24px 26px; color: #a8936a; font-size: 13.5px; }
+footer { max-width: 1440px; margin: 0 auto; padding-block: 0 26px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); color: #a8936a; font-size: 13.5px; }
 footer p { margin: 2px 0; max-width: 100ch; }
 
 /* ---------- loading screen ---------- */
@@ -276,7 +283,7 @@ footer p { margin: 2px 0; max-width: 100ch; }
 
 <div id="loading" role="status" aria-live="polite">
   <div class="lcard">
-    <h1>AtlasRoute</h1>
+    <h1>Wayfarer's Atlas</h1>
     <div class="lbar"><i id="lprog"></i></div>
     <div class="lstatus" id="lstatus">Waking the Lua engine…</div>
     <p class="tip" id="tip"></p>
@@ -284,8 +291,8 @@ footer p { margin: 2px 0; max-width: 100ch; }
 </div>
 
 <header class="top">
-  <h1>AtlasRoute</h1>
-  <p>The fastest way through your quest log, by foot, gryphon, boat, zeppelin and hearthstone. Built on Savaş Takan's Atlas, for World of Warcraft: Forever.</p>
+  <h1>Wayfarer's Atlas</h1>
+  <p>The fastest way through your quest log, by foot, gryphon, boat, zeppelin and hearthstone. Planned by the AtlasRoute addon, built on Savaş Takan's Atlas, for World of Warcraft: Forever.</p>
   <nav class="tabs" role="tablist" aria-label="View">
     <button class="tab" role="tab" id="tab-journey" aria-selected="true" aria-controls="panel-journey">Plan a journey</button>
     <button class="tab" role="tab" id="tab-cover" aria-selected="false" aria-controls="panel-cover">Ride every flight path</button>
@@ -412,7 +419,7 @@ footer p { margin: 2px 0; max-width: 100ch; }
       </section>
       <section>
         <div id="cmp"><p class="empty">The comparison appears here.</p></div>
-        <p class="note">Atlas is the Lua port of Savaş Takan's Java code, run as he wrote it. The weighted Atlas scores chains by new edges, then by time, and can jump with teleports when it gets stuck. The Rural Postman joins the flight network's pieces, balances it with a min-cost flow and walks an Euler path. The lower bound is every flight flown once.</p>
+        <p class="note">Atlas is Savaş Takan's algorithm, ported to Lua. The weighted Atlas scores chains by new edges, then by time, and can jump with teleports. The Rural Postman joins the flight network's pieces, balances it with a min-cost flow and walks an Euler path. The lower bound is every flight flown once.</p>
       </section>
     </div>
   </aside>
@@ -428,7 +435,7 @@ footer p { margin: 2px 0; max-width: 100ch; }
 (function () {
   "use strict";
   var WASMOON = "https://cdn.jsdelivr.net/npm/wasmoon@1.16.0/dist/index.js";
-  var GLUE = "https://cdn.jsdelivr.net/npm/wasmoon@1.16.0/dist/glue.wasm";
+  var GLUE = __GLUE_URL__; // the build sets this: the CDN copy, or a copy published next to the page
   var SVGNS = "http://www.w3.org/2000/svg";
   var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -1221,7 +1228,7 @@ footer p { margin: 2px 0; max-width: 100ch; }
     call("cover", q).then(function (r) {
       btn.disabled = false; btn.textContent = "Work it out";
       lastCover = r;
-      var rows = [["atlas", "Atlas (as written)"], ["weighted", "Weighted Atlas"], ["postman", "Rural Postman"]];
+      var rows = [["atlas", "Atlas"], ["weighted", "Weighted Atlas"], ["postman", "Rural Postman"]];
       var html = '<table class="cmp"><thead><tr><th>Method</th><th>Time</th><th>Flights</th><th>Map</th></tr></thead><tbody>';
       rows.forEach(function (row) {
         var m = r.methods[row[0]];
@@ -1230,7 +1237,6 @@ footer p { margin: 2px 0; max-width: 100ch; }
       });
       html += "<tr><td>Lower bound</td><td>" + fmt(r.lowerBound) + "</td><td></td><td></td></tr></tbody></table>";
       var a = r.methods.atlas.seconds, p = r.methods.postman.seconds;
-      html += '<p class="note">Atlas takes ' + (a / p).toFixed(1) + " times as long as the Rural Postman here. Atlas counts every edge as one step, so a 6-minute boat ride and a 5-second walk cost it the same.</p>";
       document.getElementById("cmp").innerHTML = html;
       Array.prototype.forEach.call(document.querySelectorAll("#cmp button"), function (b) {
         b.addEventListener("click", function () { drawCover(b.getAttribute("data-m")); });

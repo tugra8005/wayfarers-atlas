@@ -1,7 +1,11 @@
--- Builds web/AtlasRoute.html: the showcase page with the addon's Lua files and
--- web/bridge.lua inlined, so it is one file that opens anywhere (it fetches only the
--- wasmoon Lua VM and two fonts from CDNs).
--- Usage: luajit tools/build_web.lua
+-- Builds the showcase page with the addon's Lua files and web/bridge.lua inlined.
+--   luajit tools/build_web.lua
+--       web/AtlasRoute.html: one file that opens anywhere (fetches the wasmoon Lua VM,
+--       its glue.wasm and two fonts from CDNs).
+--   luajit tools/build_web.lua artifact <dir>
+--       <dir>/wayfarers-atlas.html for publishing as a claude.ai artifact: no html/head/body
+--       wrapper (the host adds it), and glue.wasm is loaded from a copy published next to
+--       the page, because the host only lets scripts, not other files, come from a CDN.
 local root = arg[0]:match("^(.*)/tools/") or "."
 local function read(p) local f = assert(io.open(p, "rb")); local s = f:read("*a"); f:close(); return s end
 
@@ -28,11 +32,32 @@ for i, f in ipairs(files) do
 end
 local payload = "[" .. table.concat(parts, ",") .. "]"
 
+local mode, outdir = arg[1], arg[2]
 local html = read(root .. "/web/template.html")
 local a, b = html:find("__LUA_SOURCES__", 1, true)
 assert(a, "placeholder __LUA_SOURCES__ not found in web/template.html")
 html = html:sub(1, a - 1) .. payload .. html:sub(b + 1)
-local out = assert(io.open(root .. "/web/AtlasRoute.html", "wb"))
+
+local function replace(s, what, with)
+  local i, j = s:find(what, 1, true)
+  assert(i, "not found in template: " .. what)
+  return s:sub(1, i - 1) .. with .. s:sub(j + 1)
+end
+local target
+if mode == "artifact" then
+  assert(outdir, "usage: luajit tools/build_web.lua artifact <dir>")
+  html = replace(html, "__GLUE_URL__", 'new URL("glue.wasm", location.href).href')
+  for _, tag in ipairs({ "<!doctype html>\n", '<html lang="en">\n', "<head>\n", '<meta charset="utf-8">\n',
+                         '<meta name="viewport" content="width=device-width, initial-scale=1">\n',
+                         "</head>\n", "<body>\n", "</body>\n", "</html>\n" }) do
+    html = replace(html, tag, "")
+  end
+  target = outdir .. "/wayfarers-atlas.html"
+else
+  html = replace(html, "__GLUE_URL__", '"https://cdn.jsdelivr.net/npm/wasmoon@1.16.0/dist/glue.wasm"')
+  target = root .. "/web/AtlasRoute.html"
+end
+local out = assert(io.open(target, "wb"))
 out:write(html)
 out:close()
-print(("web/AtlasRoute.html: %d Lua files, %d bytes"):format(#files, #html))
+print(("%s: %d Lua files, %d bytes"):format(target, #files, #html))
