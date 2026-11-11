@@ -87,6 +87,20 @@ Alt sınır, gerekli kenarların ağırlıkları toplamıdır. Ağırlıklı Atl
 
 **Görev turu, sezgisel ile kesin (rastgele görev alt kümeleri, 84 deneme):** 10 durağa kadar her denemede aynı sonuç. 11–13 durakta ortalama fark %0,18–0,57, en kötüsü %3,99. İkisi de 5 ms'nin altında.
 
+## Tanıtım sayfası
+
+`web/AtlasRoute.html` oyuna gerek kalmadan planlayıcıyı haritada gösterir. Tek bir dosyadır, tarayıcıda açmak yeter (ilk açılışta internet gerekir: wasmoon Lua VM'i cdn.jsdelivr.net'ten, yazı tipleri Google Fonts'tan gelir).
+
+- Sayfadaki bütün sayılar eklentinin kendi Lua kodundan gelir. `core/` ve `data/` dosyaları, köprü `web/bridge.lua` ile birlikte sayfanın içine gömülür ve tarayıcıda wasmoon (Lua 5.4, WebAssembly) ile, bir Web Worker'da çalışır. Lua 5.4'te `bit` kütüphanesi olmadığı için sayfa onu `&`, `|`, `<<` ile tanımlar; çıktılar LuaJIT'teki komut satırı demosuyla aynıdır.
+- **Plan a journey:** fraksiyon, sınıf, başlangıç, hearthstone, binek, mühendislik aletleri, Frequent Flier ve beta yolları seçilir; görevler işaretlenir. Rota haritaya bacak bacak mürekkeple çizilir, her kip kendi çizgisiyle.
+- **Ride every flight path:** Atlas (yazıldığı gibi), ağırlıklı Atlas ve Kırsal Postacı aynı haritada karşılaştırılır ve çizilir.
+
+Kaynak `web/template.html`'dir; değiştirdikten sonra sayfayı yeniden üretin:
+
+```bash
+luajit tools/build_web.lua
+```
+
 ## Oyuna kurulum
 
 Hedef sürüm **World of Warcraft: Forever**'dır (Classic tabanlı, 4 Kasım 2026'da çıktı). Forever'da uçan binek yoktur, modelde de yok. Eklenen Forever yolları ve kaynakları için aşağıdaki *Veri* bölümüne bakın.

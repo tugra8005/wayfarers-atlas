@@ -1,0 +1,971 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AtlasRoute</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,500;0,700;1,400&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+<style>
+:root {
+  --desk: #2b1b11;
+  --desk-hi: #4a2f1c;
+  --parch: #ead8ab;
+  --parch-deep: #c9a66a;
+  --ink: #3b2614;
+  --ink-soft: #6b4a2b;
+  --gold: #b8902f;
+  --gold-hi: #e3c15d;
+  --sea: #a7b5a6;
+  --quest: #f2c94c;
+  --alliance: #2f4d8a;
+  --horde: #8a2318;
+  --wax: #6e1f16;
+  /* route inks */
+  --i-walk: #3b2614;
+  --i-fly: #253f7a;
+  --i-boat: #1f6b66;
+  --i-zep: #8a2318;
+  --i-magic: #6a2c8a;
+  --fell: "IM Fell English", "Iowan Old Style", Georgia, serif;
+  --fell-sc: "IM Fell English SC", "IM Fell English", Georgia, serif;
+  --body: "Alegreya", Georgia, serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background:
+    radial-gradient(120% 80% at 50% 0%, var(--desk-hi) 0%, var(--desk) 55%, #1d120b 100%);
+  color: var(--parch);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+button, select, input { font: inherit; }
+:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 2px; }
+
+/* ---------- header ---------- */
+.top {
+  max-width: 1440px; margin: 0 auto; padding: 22px 24px 6px;
+  display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap;
+}
+.top h1 {
+  font-family: var(--fell); font-weight: 400; font-size: 44px; line-height: 1;
+  margin: 0; color: var(--gold-hi); letter-spacing: .01em;
+  text-shadow: 0 1px 0 #000, 0 0 18px rgba(227,193,93,.15);
+}
+.top p { margin: 0; color: #d9c595; font-style: italic; max-width: 62ch; }
+.tabs { margin-left: auto; display: flex; gap: 4px; }
+.tab {
+  background: transparent; color: #d9c595; border: 1px solid #6b4a2b;
+  padding: 6px 14px; font-family: var(--fell); font-size: 18px; cursor: pointer;
+  border-radius: 3px 3px 0 0; border-bottom-color: transparent;
+}
+.tab[aria-selected="true"] { background: var(--parch); color: var(--ink); border-color: var(--gold); }
+
+/* ---------- layout ---------- */
+.stage {
+  max-width: 1440px; margin: 0 auto; padding: 0 24px 28px;
+  display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr); gap: 22px;
+}
+@media (max-width: 980px) { .stage { grid-template-columns: 1fr; padding: 0 12px 20px; } .top { padding: 16px 12px 4px; } .top h1 { font-size: 36px; } .tabs { margin-left: 0; } }
+
+/* ---------- the map ---------- */
+.mapwrap {
+  position: relative;
+  border: 3px double var(--gold);
+  outline: 1px solid #000; outline-offset: 0;
+  box-shadow: 0 18px 40px rgba(0,0,0,.55), inset 0 0 0 1px rgba(0,0,0,.4);
+  background: var(--parch);
+}
+#map { display: block; width: 100%; height: auto; }
+.chronicle {
+  position: absolute; left: 14px; bottom: 14px; width: min(440px, 62%);
+  max-height: 128px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
+  background: rgba(18, 11, 6, .72); border: 1px solid rgba(184,144,47,.45);
+  padding: 6px 10px; font-size: 14px; line-height: 1.35; pointer-events: none;
+}
+.chronicle div { color: var(--quest); text-shadow: 0 1px 1px #000; }
+.chronicle div b { color: #ffe08a; font-weight: 500; }
+.chronicle div.quiet { color: #e9dcb6; }
+@media (max-width: 640px) { .chronicle { position: static; width: auto; max-height: none; border: 0; border-top: 1px solid var(--gold); } }
+
+/* map text */
+.lbl { font-family: var(--fell-sc); font-size: 11px; fill: var(--ink); paint-order: stroke; stroke: rgba(234,216,171,.85); stroke-width: 3px; stroke-linejoin: round; }
+.lbl.city { font-size: 13.5px; }
+.lbl.route { font-size: 12px; fill: #1e1209; }
+.lbl.hidden { display: none; }
+.continent { font-family: var(--fell); font-style: italic; font-size: 30px; fill: rgba(59,38,20,.55); letter-spacing: .06em; }
+.seaname { font-family: var(--fell); font-style: italic; font-size: 17px; fill: rgba(31,74,70,.6); letter-spacing: .3em; }
+.place { fill: var(--ink); }
+.place:hover { fill: var(--wax); cursor: help; }
+.fm { stroke: #1e1209; stroke-width: .6; }
+.netline { fill: none; stroke: var(--ink-soft); stroke-width: .8; stroke-dasharray: 1.5 3; opacity: .55; }
+.lane { fill: none; stroke: var(--i-boat); stroke-width: .9; stroke-dasharray: 5 4; opacity: .45; }
+.lane.zep { stroke: var(--i-zep); stroke-dasharray: 8 3 2 3; }
+.lane.sky { stroke: #8a6a12; stroke-dasharray: 2 3; }
+.seg { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.seg.walk { stroke: var(--i-walk); stroke-width: 2.4; stroke-dasharray: .5 4.5; }
+.seg.fly { stroke: var(--i-fly); stroke-width: 2.4; stroke-dasharray: 9 4; }
+.seg.boat, .seg.tram { stroke: var(--i-boat); stroke-width: 2.6; stroke-dasharray: 2 4; }
+.seg.zeppelin { stroke: var(--i-zep); stroke-width: 2.6; stroke-dasharray: 10 3 2 3; }
+.seg.skyship { stroke: #8a6a12; stroke-width: 2.6; stroke-dasharray: 10 3 2 3; }
+.seg.teleport, .seg.hearth, .seg.device, .seg.portal { stroke: var(--i-magic); stroke-width: 1.6; stroke-dasharray: 1 5; opacity: .9; }
+.seg.hl { stroke-width: 4.5; }
+.seg.dim { opacity: .18; }
+.marker .disc { fill: var(--wax); stroke: var(--gold-hi); stroke-width: 1.2; }
+.marker .disc.obj { fill: #4b3420; }
+.marker .num { font-family: var(--body); font-weight: 700; font-size: 9.5px; fill: #f6e7bd; text-anchor: middle; }
+.marker .glyphq { font-family: var(--fell); font-size: 20px; text-anchor: middle; fill: var(--quest); paint-order: stroke; stroke: #2a1a08; stroke-width: 3px; }
+.spark { fill: none; stroke: var(--i-magic); stroke-width: 1.2; }
+#token circle.ring { fill: var(--parch); stroke: var(--wax); stroke-width: 2; }
+
+/* ---------- the journal ---------- */
+.journal {
+  color: var(--ink);
+  background:
+    radial-gradient(140% 90% at 30% 10%, rgba(255,250,230,.55), transparent 60%),
+    radial-gradient(120% 120% at 100% 100%, rgba(150,105,45,.35), transparent 55%),
+    var(--parch);
+  border: 3px double var(--gold); outline: 1px solid #000;
+  box-shadow: 0 18px 40px rgba(0,0,0,.55);
+  padding: 18px 20px 22px;
+  align-self: start;
+}
+.journal h2 {
+  font-family: var(--fell); font-weight: 400; font-size: 25px; margin: 0 0 8px; color: var(--wax);
+  border-bottom: 1px solid rgba(59,38,20,.35); padding-bottom: 2px;
+}
+.journal h2 + p { margin-top: 0; }
+.journal section + section { margin-top: 18px; }
+.row { display: grid; grid-template-columns: 9.5em 1fr; gap: 6px 10px; align-items: center; margin: 6px 0; }
+.row label { font-style: italic; color: var(--ink-soft); }
+@media (max-width: 480px) { .row { grid-template-columns: 6.8em 1fr; } .journal { padding: 14px 12px 18px; } }
+select {
+  width: 100%; background: #f4e6c0; color: var(--ink); border: 1px solid #8a6a3a; border-radius: 2px;
+  padding: 4px 6px;
+}
+.banners { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 10px; }
+.banner {
+  border: 1px solid #000; color: #f1e3bd; padding: 7px 8px 9px; cursor: pointer;
+  font-family: var(--fell); font-size: 19px; text-align: center; opacity: .55;
+  clip-path: polygon(0 0, 100% 0, 100% 82%, 50% 100%, 0 82%);
+}
+.banner.alliance { background: linear-gradient(#3b5ea3, var(--alliance)); }
+.banner.horde { background: linear-gradient(#a8331f, var(--horde)); }
+.banner[aria-pressed="true"] { opacity: 1; box-shadow: inset 0 0 0 2px var(--gold-hi); }
+.checks { display: grid; gap: 4px; margin-top: 6px; }
+.checks label { display: flex; gap: 8px; align-items: baseline; cursor: pointer; }
+.checks small { color: var(--ink-soft); }
+input[type=checkbox] { accent-color: var(--wax); width: 15px; height: 15px; transform: translateY(2px); }
+.quests { list-style: none; padding: 0; margin: 4px 0 0; }
+.quests li { padding: 5px 0 5px 0; border-bottom: 1px dotted rgba(59,38,20,.3); }
+.quests label { display: grid; grid-template-columns: 18px 16px 1fr; gap: 6px; align-items: baseline; cursor: pointer; }
+.qmark { font-family: var(--fell); color: #b8860b; font-size: 19px; text-shadow: 0 0 1px #2a1a08, 0 1px 0 #2a1a08; line-height: 1; }
+.qname { font-weight: 500; }
+.qroute { grid-column: 3; font-size: 14px; color: var(--ink-soft); }
+.go {
+  margin-top: 14px; width: 100%; cursor: pointer;
+  background: linear-gradient(#83281c, var(--wax)); color: #f6e7bd;
+  border: 2px solid var(--gold); outline: 1px solid #000; border-radius: 3px;
+  font-family: var(--fell); font-size: 21px; padding: 7px 10px 9px;
+  text-shadow: 0 1px 0 #000;
+}
+.go:hover { background: linear-gradient(#93301f, #7a2418); }
+.go:disabled { opacity: .6; cursor: progress; }
+.summary { font-size: 18px; margin: 4px 0 10px; }
+.summary strong { font-family: var(--fell); font-weight: 400; font-size: 24px; color: var(--wax); }
+.itin { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+.itin > li { position: relative; padding: 6px 0 6px 34px; border-bottom: 1px dotted rgba(59,38,20,.3); cursor: default; }
+.itin > li:hover, .itin > li:focus-within { background: rgba(184,144,47,.12); }
+.itin .n { position: absolute; left: 0; top: 7px; width: 26px; text-align: right; font-family: var(--fell); color: var(--ink-soft); }
+.itin .what { display: flex; justify-content: space-between; gap: 10px; }
+.itin .what span:last-child { white-space: nowrap; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.itin .kind { font-family: var(--fell); }
+.itin .kind.accept::before { content: "! "; color: #b8860b; }
+.itin .kind.turnin::before { content: "? "; color: #b8860b; }
+.itin ul { list-style: none; margin: 2px 0 0; padding: 0; font-size: 14.5px; color: var(--ink-soft); }
+.itin ul li { display: grid; grid-template-columns: 22px 1fr auto; gap: 6px; align-items: center; }
+.itin ul li span:last-child { font-variant-numeric: tabular-nums; }
+.glyph { width: 18px; height: 14px; }
+.empty { font-style: italic; color: var(--ink-soft); }
+.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; font-size: 14px; margin-top: 10px; color: var(--ink-soft); }
+.legend div { display: flex; align-items: center; gap: 8px; }
+.legend svg { width: 34px; height: 8px; flex: none; }
+table.cmp { width: 100%; border-collapse: collapse; font-size: 15.5px; margin: 6px 0 8px; }
+table.cmp th { font-family: var(--fell); font-weight: 400; text-align: left; color: var(--wax); border-bottom: 1px solid rgba(59,38,20,.4); padding: 3px 4px; }
+table.cmp td { padding: 4px; border-bottom: 1px dotted rgba(59,38,20,.3); font-variant-numeric: tabular-nums; }
+table.cmp td:first-child { font-style: italic; }
+table.cmp tr.on td { background: rgba(184,144,47,.18); }
+table.cmp button { background: none; border: 1px solid #8a6a3a; color: var(--ink); cursor: pointer; padding: 1px 8px; border-radius: 2px; }
+.note { font-size: 14.5px; color: var(--ink-soft); }
+footer { max-width: 1440px; margin: 0 auto; padding: 0 24px 26px; color: #a8936a; font-size: 13.5px; }
+footer p { margin: 2px 0; max-width: 100ch; }
+
+/* ---------- loading screen ---------- */
+#loading {
+  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
+  background: radial-gradient(80% 70% at 50% 45%, #3a2616, #120b06 75%);
+  transition: opacity .6s ease;
+}
+#loading.gone { opacity: 0; pointer-events: none; }
+.lcard { text-align: center; max-width: 560px; padding: 24px; }
+.lcard h1 { font-family: var(--fell); font-weight: 400; font-size: 56px; color: var(--gold-hi); margin: 0 0 4px; text-shadow: 0 2px 0 #000; }
+.lbar { margin: 26px auto 10px; width: min(460px, 86vw); height: 16px; border: 2px solid var(--gold); outline: 1px solid #000; background: #120b06; padding: 2px; }
+.lbar i { display: block; height: 100%; width: 8%; background: linear-gradient(#e0b04a, #9c6d13); transition: width .5s ease; }
+.lstatus { color: #d9c595; font-style: italic; }
+.tip { margin-top: 30px; color: var(--quest); font-size: 17px; }
+.tip b { color: #ffe08a; font-weight: 500; }
+@media (prefers-reduced-motion: reduce) { #loading, .lbar i { transition: none; } }
+</style>
+</head>
+<body>
+
+<div id="loading" role="status" aria-live="polite">
+  <div class="lcard">
+    <h1>AtlasRoute</h1>
+    <div class="lbar"><i id="lprog"></i></div>
+    <div class="lstatus" id="lstatus">Waking the Lua engine…</div>
+    <p class="tip" id="tip"></p>
+  </div>
+</div>
+
+<header class="top">
+  <h1>AtlasRoute</h1>
+  <p>The fastest way through your quest log, by foot, gryphon, boat, zeppelin and hearthstone. Built on Savaş Takan's Atlas, for World of Warcraft: Forever.</p>
+  <nav class="tabs" role="tablist" aria-label="View">
+    <button class="tab" role="tab" id="tab-journey" aria-selected="true" aria-controls="panel-journey">Plan a journey</button>
+    <button class="tab" role="tab" id="tab-cover" aria-selected="false" aria-controls="panel-cover">Ride every flight path</button>
+  </nav>
+</header>
+
+<main class="stage">
+  <div class="mapwrap">
+    <svg id="map" viewBox="0 0 1000 1060" role="img" aria-label="Map of Kalimdor, the Eastern Kingdoms and Zephras Isle with the planned route">
+      <defs>
+        <filter id="paper" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3" result="n"/>
+          <feColorMatrix in="n" type="matrix" values="0 0 0 0 .35  0 0 0 0 .24  0 0 0 0 .1  0 0 0 .22 0"/>
+        </filter>
+        <filter id="stain" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency=".008" numOctaves="3" seed="11"/>
+          <feColorMatrix type="matrix" values="0 0 0 0 .45  0 0 0 0 .3  0 0 0 0 .12  0 0 0 .55 -.18"/>
+        </filter>
+        <filter id="land" x="-5%" y="-5%" width="110%" height="110%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="11" result="b"/>
+          <feComponentTransfer in="b" result="goo">
+            <feFuncA type="discrete" tableValues="0 0 0 0 1 1 1 1 1 1"/>
+          </feComponentTransfer>
+          <feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="3" seed="7" result="noise"/>
+          <feDisplacementMap in="goo" in2="noise" scale="16" xChannelSelector="R" yChannelSelector="G" result="shape"/>
+          <feMorphology in="shape" operator="dilate" radius="2" result="d2"/>
+          <feComposite in="d2" in2="shape" operator="out" result="coastRing"/>
+          <feMorphology in="shape" operator="dilate" radius="7" result="d7"/>
+          <feMorphology in="shape" operator="dilate" radius="5" result="d5"/>
+          <feComposite in="d7" in2="d5" operator="out" result="wave1"/>
+          <feMorphology in="shape" operator="dilate" radius="13" result="d13"/>
+          <feMorphology in="shape" operator="dilate" radius="12" result="d12"/>
+          <feComposite in="d13" in2="d12" operator="out" result="wave2"/>
+          <feFlood flood-color="#efe0b6"/><feComposite in2="shape" operator="in" result="fill"/>
+          <feFlood flood-color="#3b2614"/><feComposite in2="coastRing" operator="in" result="coast"/>
+          <feFlood flood-color="#1f4a46" flood-opacity=".35"/><feComposite in2="wave1" operator="in" result="w1"/>
+          <feFlood flood-color="#1f4a46" flood-opacity=".2"/><feComposite in2="wave2" operator="in" result="w2"/>
+          <feMerge><feMergeNode in="w2"/><feMergeNode in="w1"/><feMergeNode in="fill"/><feMergeNode in="coast"/></feMerge>
+        </filter>
+        <radialGradient id="burn" cx="50%" cy="50%" r="72%">
+          <stop offset="62%" stop-color="#5a3510" stop-opacity="0"/>
+          <stop offset="100%" stop-color="#4a2a0b" stop-opacity=".55"/>
+        </radialGradient>
+        <symbol id="g-wing" viewBox="-6 -6 12 12"><path d="M-5 1 C-3 -4 1 -5 5 -4 C2 -3 1 -1 3 0 C0 0 -1 1 0 3 C-2 2 -4 2 -5 1Z"/></symbol>
+      </defs>
+      <rect width="1000" height="1060" fill="#ead8ab"/>
+      <rect width="1000" height="1060" fill="#a7b5a6" opacity=".45"/>
+      <rect width="1000" height="1060" filter="url(#stain)"/>
+      <g id="lands"></g>
+      <g id="grid" opacity=".18" stroke="#3b2614" stroke-width=".5"></g>
+      <g id="names"></g>
+      <g id="network"></g>
+      <g id="places"></g>
+      <g id="route"></g>
+      <g id="markers"></g>
+      <g id="labels"></g>
+      <g id="token" style="display:none"><circle class="ring" r="7"/><circle r="2.6" fill="#6e1f16"/></g>
+      <g id="compass" transform="translate(930 975)"></g>
+      <rect width="1000" height="1060" filter="url(#paper)" style="mix-blend-mode:multiply" pointer-events="none"/>
+      <rect width="1000" height="1060" fill="url(#burn)" pointer-events="none"/>
+    </svg>
+    <div class="chronicle" id="chronicle" aria-live="polite"></div>
+  </div>
+
+  <aside class="journal">
+    <div id="panel-journey" role="tabpanel" aria-labelledby="tab-journey">
+      <section>
+        <h2>Your traveller</h2>
+        <div class="banners" role="group" aria-label="Faction">
+          <button class="banner alliance" data-faction="Alliance" aria-pressed="true">Alliance</button>
+          <button class="banner horde" data-faction="Horde" aria-pressed="false">Horde</button>
+        </div>
+        <div class="row"><label for="cls">Class</label>
+          <select id="cls">
+            <option value="">Warrior, rogue, priest…</option>
+            <option value="MAGE">Mage</option>
+            <option value="DRUID">Druid</option>
+            <option value="SHAMAN">Shaman</option>
+          </select></div>
+        <div class="row"><label for="start">Standing in</label><select id="start"></select></div>
+        <div class="row"><label for="hearth">Hearthstone</label><select id="hearth"></select></div>
+        <div class="row"><label for="mount">Riding</label>
+          <select id="mount">
+            <option value="7">On foot</option>
+            <option value="11.2" selected>Apprentice riding, 60%</option>
+            <option value="14">Journeyman riding, 100%</option>
+          </select></div>
+        <div class="checks">
+          <label><input type="checkbox" id="engineer"> <span>Engineering trinkets in the bags <small>(Everlook ripper, Gadgetzan transporter)</small></span></label>
+          <label><input type="checkbox" id="flier"> <span>Frequent Flier <small>(+20% flight speed)</small></span></label>
+          <label><input type="checkbox" id="beta"> <span>Trust beta reports <small>(Dalaran portal, Teleport: Dalaran)</small></span></label>
+        </div>
+      </section>
+      <section>
+        <h2>Quest log</h2>
+        <ul class="quests" id="quests"></ul>
+        <button class="go" id="plan">Plan the journey</button>
+      </section>
+      <section>
+        <h2>The road ahead</h2>
+        <div id="itinerary"><p class="empty">Tick some quests and plan the journey. The route will be inked onto the map.</p></div>
+        <div class="legend" id="legend"></div>
+      </section>
+    </div>
+
+    <div id="panel-cover" role="tabpanel" aria-labelledby="tab-cover" hidden>
+      <section>
+        <h2>Ride every flight path</h2>
+        <p class="note">Every flight connection your faction can use, flown once in each direction. This is the problem Atlas was written for: cover every edge of a graph in one walk. Three ways to do it, on the same map:</p>
+        <div class="banners" role="group" aria-label="Faction">
+          <button class="banner alliance" data-faction="Alliance" aria-pressed="true">Alliance</button>
+          <button class="banner horde" data-faction="Horde" aria-pressed="false">Horde</button>
+        </div>
+        <div class="row"><label for="ccls">Class</label>
+          <select id="ccls"><option value="">Not a mage</option><option value="MAGE">Mage</option></select></div>
+        <div class="row"><label for="cstart">Starting from</label><select id="cstart"></select></div>
+        <button class="go" id="cover">Work it out</button>
+      </section>
+      <section>
+        <div id="cmp"><p class="empty">The comparison appears here.</p></div>
+        <p class="note">Atlas is the Lua port of Savaş Takan's Java code, run as he wrote it. The weighted Atlas scores chains by new edges, then by time, and can jump with teleports when it gets stuck. The Rural Postman joins the flight network's pieces, balances it with a min-cost flow and walks an Euler path. The lower bound is every flight flown once.</p>
+      </section>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <p>Coursework for Savaş Takan by Alparslan Tuğra Şahin. Fan-made and unofficial; not affiliated with Blizzard Entertainment. Every number on this page comes from the addon's own Lua code, running in your browser through the wasmoon Lua VM.</p>
+  <p>Map positions are hand-placed approximations, and boat and skyship times are estimates. Forever's additions follow the community guides listed in the README.</p>
+</footer>
+
+<script type="application/json" id="lua-sources">__LUA_SOURCES__</script>
+<script>
+(function () {
+  "use strict";
+  var WASMOON = "https://cdn.jsdelivr.net/npm/wasmoon@1.16.0/dist/index.js";
+  var GLUE = "https://cdn.jsdelivr.net/npm/wasmoon@1.16.0/dist/glue.wasm";
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var TIPS = [
+    "A flight with three hops is one trip to the flight master, not three. The planner counts it that way.",
+    "Your hearthstone is used once per journey, on the leg where it saves the most time.",
+    "The Menethil boat runs a loop. Menethil to Auberdine calls at Southshore first; the way back is direct.",
+    "Mages can teleport from anywhere on the ground, but not while on a gryphon.",
+    "Druids have their own flight master in Moonglade. Nobody else may land there.",
+    "Skyborne travellers leave Valanaar by skyship: to Dalaran for everyone, to Skywatcher Plateau for the Horde.",
+    "Up to thirteen stops, the order is proven best. Past that, a heuristic takes over and is usually right.",
+    "Atlas was written to test state machines. Here it rides gryphons instead."
+  ];
+
+  // ---------------------------------------------------------------- Lua worker
+  var workerSrc = [
+    "var lua;",
+    "var SHIM = 'bit = { band = function(a, b) return math.tointeger(a) & math.tointeger(b) end,' +",
+    "  ' bor = function(a, b) return math.tointeger(a) | math.tointeger(b) end,' +",
+    "  ' lshift = function(a, b) return math.tointeger(a) << math.tointeger(b) end } NS = {}';",
+    "self.onmessage = async function (ev) {",
+    "  var m = ev.data;",
+    "  if (m.type === 'init') {",
+    "    try {",
+    "      importScripts(m.wasmoon);",
+    "      postMessage({ type: 'progress', step: 'engine' });",
+    "      lua = await new wasmoon.LuaFactory(m.glue).createEngine();",
+    "      await lua.doString(SHIM);",
+    "      for (var i = 0; i < m.files.length; i++) {",
+    "        lua.global.set('__src', m.files[i].src);",
+    "        await lua.doString('assert(load(__src, \"=' + m.files[i].name + '\"))(\"AtlasRoute\", NS)');",
+    "        postMessage({ type: 'progress', step: 'file', i: i + 1, n: m.files.length, name: m.files[i].name });",
+    "      }",
+    "      postMessage({ type: 'ready' });",
+    "    } catch (e) { postMessage({ type: 'fail', error: String(e && e.message || e) }); }",
+    "  } else if (m.type === 'call') {",
+    "    try {",
+    "      lua.global.set('__arg', m.arg || '');",
+    "      var r = await lua.doString('return NS.Bridge.' + m.fn + '(__arg)');",
+    "      postMessage({ type: 'result', id: m.id, result: r });",
+    "    } catch (e) { postMessage({ type: 'result', id: m.id, error: String(e && e.message || e) }); }",
+    "  }",
+    "};"
+  ].join("\n");
+
+  var worker, pending = {}, nextId = 1, readyResolve, readyReject;
+  var ready = new Promise(function (res, rej) { readyResolve = res; readyReject = rej; });
+
+  function startWorker() {
+    var files = JSON.parse(document.getElementById("lua-sources").textContent);
+    worker = new Worker(URL.createObjectURL(new Blob([workerSrc], { type: "text/javascript" })));
+    worker.onmessage = function (ev) {
+      var m = ev.data;
+      if (m.type === "progress") {
+        if (m.step === "engine") setLoad(25, "Unrolling the maps…");
+        else setLoad(25 + 70 * m.i / m.n, "Reading " + m.name);
+      } else if (m.type === "ready") { setLoad(100, "Ready."); readyResolve(); }
+      else if (m.type === "fail") { readyReject(new Error(m.error)); }
+      else if (m.type === "result") {
+        var p = pending[m.id]; delete pending[m.id];
+        if (m.error) p.reject(new Error(m.error)); else p.resolve(JSON.parse(m.result));
+      }
+    };
+    worker.onerror = function (e) { readyReject(new Error(e.message || "worker error")); };
+    worker.postMessage({ type: "init", wasmoon: WASMOON, glue: GLUE, files: files });
+  }
+  function call(fn, arg) {
+    return ready.then(function () {
+      return new Promise(function (resolve, reject) {
+        var id = nextId++;
+        pending[id] = { resolve: resolve, reject: reject };
+        worker.postMessage({ type: "call", id: id, fn: fn, arg: arg });
+      });
+    });
+  }
+
+  function setLoad(pct, text) {
+    document.getElementById("lprog").style.width = pct + "%";
+    document.getElementById("lstatus").textContent = text;
+  }
+
+  // ---------------------------------------------------------------- helpers
+  function el(name, attrs, parent) {
+    var n = document.createElementNS(SVGNS, name);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+  function h(tag, attrs, text) {
+    var n = document.createElement(tag);
+    if (attrs) for (var k in attrs) { if (k === "class") n.className = attrs[k]; else n.setAttribute(k, attrs[k]); }
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function fmt(s) {
+    s = Math.round(s);
+    var hh = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+    if (hh) return hh + "h " + (m < 10 ? "0" : "") + m + "m";
+    return m + ":" + (sec < 10 ? "0" : "") + sec;
+  }
+  function mins(s) { return Math.round(s / 60); }
+  var chron = document.getElementById("chronicle");
+  function say(html, quiet) {
+    var d = h("div", quiet ? { "class": "quiet" } : null);
+    d.innerHTML = "<b>[AtlasRoute]</b> " + html;
+    chron.appendChild(d);
+    while (chron.children.length > 6) chron.removeChild(chron.firstChild);
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  // ---------------------------------------------------------------- the map
+  var W = null, byId = {};
+  function proj(p) {
+    if (p.continent === "EK") return [p.x * 0.1 + 470, (9800 - p.y) * 0.1 + 60];
+    if (p.continent === "ZEP") return [495, 80];
+    return [p.x * 0.1 - 70, (10000 - p.y) * 0.1 + 40];
+  }
+  var CITIES = { stormwind: 1, ironforge: 1, darnassus: 1, orgrimmar: 1, undercity: 1, thunderbluff: 1, valanaar: 1, dalaran: 1 };
+  var MODE = {
+    walk: "Walk", fly: "Fly", boat: "Sail", zeppelin: "Zeppelin", skyship: "Skyship", tram: "Deeprun Tram",
+    portal: "Portal", teleport: "Teleport", hearth: "Hearthstone", device: "Device"
+  };
+  var GLYPH = {
+    walk: '<path d="M3 11 C5 5 8 5 9 8 M10 11 C12 5 15 5 16 8" stroke="#3b2614" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
+    fly: '<path d="M1 9 C5 2 10 2 17 4 C12 5 11 7 13 9 C9 8 7 9 8 12 C5 10 3 10 1 9Z" fill="#253f7a"/>',
+    boat: '<path d="M2 9 H16 L13 13 H5Z M9 1 V9 M9 2 L14 7 H9" fill="#1f6b66" stroke="#1f6b66" stroke-width="1"/>',
+    tram: '<rect x="3" y="2" width="12" height="8" rx="2" fill="#1f6b66"/><path d="M3 13 H15" stroke="#1f6b66" stroke-width="1.5"/>',
+    zeppelin: '<ellipse cx="9" cy="5" rx="8" ry="4" fill="#8a2318"/><rect x="6" y="9" width="6" height="3" fill="#8a2318"/>',
+    skyship: '<ellipse cx="9" cy="5" rx="8" ry="3.6" fill="#8a6a12"/><path d="M4 10 H14 L12 13 H6Z" fill="#8a6a12"/>',
+    portal: '<circle cx="9" cy="7" r="5" stroke="#6a2c8a" stroke-width="2" fill="none"/><circle cx="9" cy="7" r="2" fill="#6a2c8a"/>',
+    teleport: '<path d="M9 1 L10.5 5.5 L15 7 L10.5 8.5 L9 13 L7.5 8.5 L3 7 L7.5 5.5Z" fill="#6a2c8a"/>',
+    hearth: '<path d="M3 13 L3 6 L9 1 L15 6 L15 13Z" fill="#6a2c8a"/><circle cx="9" cy="9" r="2" fill="#ead8ab"/>',
+    device: '<circle cx="9" cy="7" r="4" fill="none" stroke="#6a2c8a" stroke-width="2.5" stroke-dasharray="2 1.2"/>'
+  };
+  function glyph(mode) {
+    return '<svg class="glyph" viewBox="0 0 18 14" aria-hidden="true">' + (GLYPH[mode] || GLYPH.walk) + "</svg>";
+  }
+
+  function drawWorld() {
+    var lands = document.getElementById("lands");
+    var groups = {};
+    function groupOf(p) { return p.region === "TEL" || p.continent === "TEL" ? "TEL" : p.continent; }
+    W.places.forEach(function (p) {
+      var g = groupOf(p);
+      if (!groups[g]) groups[g] = el("g", { filter: "url(#land)" }, lands);
+      var xy = proj(p);
+      el("circle", { cx: xy[0], cy: xy[1], r: g === "ZEP" ? 24 : 36, fill: "#000" }, groups[g]);
+    });
+    // fill the interior: midpoints of flight links and land routes on the same landmass
+    W.links.forEach(function (l) {
+      var a = byId[l.a], b = byId[l.b];
+      if (!a || !b || groupOf(a) !== groupOf(b)) return;
+      var pa = proj(a), pb = proj(b);
+      var d = Math.hypot(pa[0] - pb[0], pa[1] - pb[1]);
+      if (d > 240) return;
+      for (var t = 0.25; t < 1; t += 0.25) {
+        el("circle", { cx: pa[0] + (pb[0] - pa[0]) * t, cy: pa[1] + (pb[1] - pa[1]) * t, r: 30, fill: "#000" }, groups[groupOf(a)]);
+      }
+    });
+    // inset frame for Zephras Isle
+    var names = document.getElementById("names");
+    el("rect", { x: 438, y: 30, width: 114, height: 92, fill: "none", stroke: "#3b2614", "stroke-width": 1, "stroke-dasharray": "3 2" }, names);
+    var zt = el("text", { x: 495, y: 136, "text-anchor": "middle", "class": "seaname", style: "font-size:12px;letter-spacing:.08em" }, names);
+    zt.textContent = "Zephras Isle, in the Skywall";
+    var k = el("text", { x: 150, y: 990, "class": "continent" }, names); k.textContent = "Kalimdor";
+    var e = el("text", { x: 820, y: 96, "class": "continent", "text-anchor": "middle" }, names); e.textContent = "Eastern Kingdoms";
+    var s = el("text", { x: 0, y: 0, "class": "seaname", transform: "translate(492 640) rotate(-90)", "text-anchor": "middle" }, names);
+    s.textContent = "The Great Sea";
+    // faint chart grid
+    var grid = document.getElementById("grid");
+    for (var gx = 100; gx < 1000; gx += 100) el("line", { x1: gx, y1: 0, x2: gx, y2: 1060, "stroke-dasharray": "2 6" }, grid);
+    for (var gy = 100; gy < 1060; gy += 100) el("line", { x1: 0, y1: gy, x2: 1000, y2: gy, "stroke-dasharray": "2 6" }, grid);
+    drawCompass();
+    // places and labels
+    var places = document.getElementById("places"), labels = document.getElementById("labels");
+    W.places.forEach(function (p) {
+      var xy = proj(p);
+      var c = el("circle", { cx: xy[0], cy: xy[1], r: 2.3, "class": "place" }, places);
+      var t = el("title", {}, c); t.textContent = p.name + ", " + p.zone;
+      var lb = el("text", { x: xy[0] + 6, y: xy[1] - 5, "class": "lbl" + (CITIES[p.id] ? " city" : " hidden"), "data-id": p.id }, labels);
+      lb.textContent = p.name;
+    });
+  }
+
+  function drawCompass() {
+    var g = document.getElementById("compass");
+    el("circle", { r: 34, fill: "none", stroke: "#3b2614", "stroke-width": 0.8 }, g);
+    el("circle", { r: 27, fill: "none", stroke: "#3b2614", "stroke-width": 0.5, "stroke-dasharray": "1 2" }, g);
+    el("path", { d: "M0 -44 L6 0 L0 44 L-6 0Z", fill: "#3b2614" }, g);
+    el("path", { d: "M-44 0 L0 -6 L44 0 L0 6Z", fill: "#6b4a2b" }, g);
+    el("path", { d: "M0 -44 L6 0 L0 0Z M0 44 L-6 0 L0 0Z", fill: "#ead8ab" }, g);
+    var n = el("text", { y: -50, "text-anchor": "middle", "class": "lbl city" }, g); n.textContent = "N";
+  }
+
+  function usable(item, faction, cls, beta) {
+    if (item.faction && item.faction !== faction) return false;
+    if (item.class && item.class !== cls) return false;
+    if (item.unconfirmed && !beta) return false;
+    return true;
+  }
+  function arc(pa, pb, bend) {
+    var mx = (pa[0] + pb[0]) / 2, my = (pa[1] + pb[1]) / 2;
+    var dx = pb[0] - pa[0], dy = pb[1] - pa[1];
+    return "M" + pa[0].toFixed(1) + " " + pa[1].toFixed(1) + " Q" + (mx - dy * bend).toFixed(1) + " " + (my + dx * bend).toFixed(1) +
+      " " + pb[0].toFixed(1) + " " + pb[1].toFixed(1);
+  }
+  function drawNetwork(faction, cls, beta) {
+    var g = document.getElementById("network");
+    g.textContent = "";
+    W.links.forEach(function (l) {
+      if (!usable(l, faction, cls, beta)) return;
+      el("path", { d: arc(proj(byId[l.a]), proj(byId[l.b]), 0.08), "class": "netline" }, g);
+    });
+    W.transports.forEach(function (t) {
+      if (!usable(t, faction, cls, beta) || t.mode === "portal" || t.mode === "tram") return;
+      var cls2 = "lane" + (t.mode === "zeppelin" ? " zep" : t.mode === "skyship" ? " sky" : "");
+      el("path", { d: arc(proj(byId[t.from]), proj(byId[t.to]), 0.12), "class": cls2 }, g);
+    });
+    var places = document.getElementById("places");
+    Array.prototype.slice.call(places.querySelectorAll(".fm")).forEach(function (n) { n.remove(); });
+    W.masters.forEach(function (m) {
+      if (!usable(m, faction, cls, beta)) return;
+      var xy = proj(byId[m.id]);
+      var color = m.class ? "#6a2c8a" : m.faction === "Alliance" ? "#2f4d8a" : m.faction === "Horde" ? "#8a2318" : "#b8902f";
+      var u = el("use", { href: "#g-wing", x: xy[0] - 11, y: xy[1] - 9, width: 9, height: 9, fill: color, "class": "fm" }, places);
+      var t = el("title", {}, u); t.textContent = byId[m.id].name + " flight master";
+    });
+  }
+
+  // ---------------------------------------------------------------- route drawing + animation
+  var anim = null;
+  function clearRoute() {
+    if (anim) { cancelAnimationFrame(anim.raf); anim = null; }
+    document.getElementById("route").textContent = "";
+    document.getElementById("markers").textContent = "";
+    document.getElementById("token").style.display = "none";
+    Array.prototype.slice.call(document.querySelectorAll(".lbl.route")).forEach(function (n) {
+      n.classList.remove("route"); if (!CITIES[n.getAttribute("data-id")]) n.classList.add("hidden");
+    });
+  }
+  function showLabel(id) {
+    var n = document.querySelector('.lbl[data-id="' + id + '"]');
+    if (n) { n.classList.remove("hidden"); n.classList.add("route"); }
+  }
+  var BEND = { fly: 0.14, boat: 0.1, zeppelin: 0.1, skyship: 0.12, tram: 0, walk: 0, teleport: 0.05, hearth: 0.05, device: 0.05, portal: 0 };
+  // segs: [{mode, path:[ids], step}] -> SVG elements with a reveal mask each
+  function buildSegments(segs) {
+    var g = document.getElementById("route");
+    var defs = el("defs", {}, g);
+    var out = [];
+    segs.forEach(function (s, i) {
+      var pts = s.path.map(function (id) { return proj(byId[id]); });
+      var d = "";
+      for (var j = 1; j < pts.length; j++) {
+        var piece = arc(pts[j - 1], pts[j], BEND[s.mode] || 0);
+        d += (j === 1 ? piece : piece.replace(/^M[^Q]+/, ""));
+      }
+      if (pts.length < 2 || (pts.length === 2 && pts[0][0] === pts[1][0] && pts[0][1] === pts[1][1])) return;
+      var mask = el("mask", { id: "rv" + i, maskUnits: "userSpaceOnUse", x: 0, y: 0, width: 1000, height: 1060 }, defs);
+      var mp = el("path", { d: d, stroke: "#fff", "stroke-width": 10, fill: "none", "stroke-linecap": "round" }, mask);
+      var vis = el("path", { d: d, "class": "seg " + s.mode, mask: "url(#rv" + i + ")", "data-step": s.step }, g);
+      var L = vis.getTotalLength() || 1;
+      mp.setAttribute("stroke-dasharray", L + " " + (L + 20));
+      mp.setAttribute("stroke-dashoffset", L);
+      out.push({ vis: vis, mask: mp, L: L, s: s, end: pts[pts.length - 1] });
+    });
+    return out;
+  }
+  function sparkle(xy) {
+    var g = document.getElementById("route");
+    for (var r = 5; r <= 11; r += 6) el("circle", { cx: xy[0], cy: xy[1], r: r, "class": "spark" }, g);
+  }
+  function animate(parts, totalMs, onDone) {
+    var token = document.getElementById("token");
+    if (reduceMotion || !parts.length) {
+      parts.forEach(function (p) { p.mask.setAttribute("stroke-dashoffset", 0); if (p.s.magic) sparkle(p.end); });
+      if (onDone) onDone();
+      return;
+    }
+    var weights = parts.map(function (p) { return Math.max(0.35, Math.sqrt(p.s.seconds || 30)); });
+    var sum = weights.reduce(function (a, b) { return a + b; }, 0);
+    var durs = weights.map(function (w) { return totalMs * w / sum; });
+    token.style.display = "";
+    var i = 0, t0 = null;
+    anim = {};
+    function frame(ts) {
+      if (t0 === null) t0 = ts;
+      var p = parts[i], f = Math.min(1, (ts - t0) / durs[i]);
+      p.mask.setAttribute("stroke-dashoffset", p.L * (1 - f));
+      var pt = p.vis.getPointAtLength(p.L * f);
+      token.setAttribute("transform", "translate(" + pt.x.toFixed(1) + " " + pt.y.toFixed(1) + ")");
+      if (f >= 1) {
+        if (p.s.magic) sparkle(p.end);
+        i++; t0 = ts;
+        if (i >= parts.length) { anim = null; if (onDone) onDone(); return; }
+      }
+      anim.raf = requestAnimationFrame(frame);
+    }
+    anim.raf = requestAnimationFrame(frame);
+  }
+  var MAGIC = { teleport: 1, hearth: 1, device: 1, portal: 1 };
+
+  function drawMarkers(steps) {
+    var g = document.getElementById("markers");
+    var seen = {};
+    steps.forEach(function (st, k) {
+      var xy = proj(byId[st.place]);
+      var key = st.place;
+      var off = (seen[key] = (seen[key] || 0) + 1) - 1;
+      // stops at the same place line up to the left of it, leaving the label free on the right
+      var m = el("g", { "class": "marker", transform: "translate(" + (xy[0] - 10 - off * 17) + " " + (xy[1] + 1) + ")" }, g);
+      var tt = el("title", {}, m);
+      tt.textContent = (k + 1) + ". " + (st.kind === "accept" ? "Accept " : st.kind === "turnin" ? "Hand in " : "Do ") + st.name;
+      el("circle", { r: 7.5, "class": "disc" + (st.kind === "objective" ? " obj" : "") }, m);
+      var n = el("text", { "class": "num", y: 3.4 }, m); n.textContent = k + 1;
+      if (st.kind !== "objective") {
+        var q = el("text", { "class": "glyphq", y: -10 }, m);
+        q.textContent = st.kind === "accept" ? "!" : "?";
+      }
+      showLabel(st.place);
+    });
+  }
+
+  // ---------------------------------------------------------------- journey tab
+  var state = { faction: "Alliance", cfaction: "Alliance" };
+  var DEFAULT_START = { Alliance: "ironforge", Horde: "orgrimmar" };
+  var DEFAULT_HEARTH = { Alliance: "stormwind", Horde: "orgrimmar" };
+
+  function fillPlaces(select, value, withNone) {
+    select.textContent = "";
+    if (withNone) select.appendChild(h("option", { value: "" }, "On cooldown"));
+    var groups = { KAL: "Kalimdor", EK: "Eastern Kingdoms", TEL: "Teldrassil", ZEP: "Zephras Isle" };
+    Object.keys(groups).forEach(function (c) {
+      var og = h("optgroup", { label: groups[c] });
+      W.places.filter(function (p) { return p.continent === c; })
+        .sort(function (a, b) { return a.name.localeCompare(b.name); })
+        .forEach(function (p) { og.appendChild(h("option", { value: p.id }, p.name)); });
+      select.appendChild(og);
+    });
+    select.value = value;
+  }
+  function fillQuests() {
+    var ul = document.getElementById("quests");
+    ul.textContent = "";
+    var list = W.quests[state.faction === "Horde" ? "horde" : "alliance"];
+    list.forEach(function (q, i) {
+      var li = h("li");
+      var lab = h("label");
+      var cb = h("input", { type: "checkbox", value: q.id });
+      if (i < 5) cb.checked = true;
+      lab.appendChild(cb);
+      lab.appendChild(h("span", { "class": "qmark", "aria-hidden": "true" }, q.accepted ? "?" : "!"));
+      lab.appendChild(h("span", { "class": "qname" }, q.name));
+      var parts = [];
+      if (!q.accepted) parts.push("from " + byId[q.giver].name);
+      if (q.objectives.length) parts.push("to " + q.objectives.map(function (o) { return byId[o].name; }).join(", "));
+      parts.push((q.accepted ? "hand in at " : "back to ") + byId[q.turnin].name);
+      lab.appendChild(h("span", { "class": "qroute" }, (q.accepted ? "Already accepted, " : "") + parts.join(", ")));
+      li.appendChild(lab);
+      ul.appendChild(li);
+    });
+  }
+  function setFaction(f, which) {
+    var key = which === "cover" ? "cfaction" : "faction";
+    state[key] = f;
+    var panel = document.getElementById(which === "cover" ? "panel-cover" : "panel-journey");
+    Array.prototype.forEach.call(panel.querySelectorAll(".banner"), function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-faction") === f ? "true" : "false");
+    });
+    if (which === "cover") {
+      document.getElementById("cstart").value = DEFAULT_START[f];
+      drawNetwork(f, document.getElementById("ccls").value, false);
+      clearRoute();
+      return;
+    }
+    document.getElementById("start").value = DEFAULT_START[f];
+    document.getElementById("hearth").value = DEFAULT_HEARTH[f];
+    fillQuests();
+    refreshNetwork();
+    clearRoute();
+    document.getElementById("itinerary").innerHTML = '<p class="empty">Tick some quests and plan the journey. The route will be inked onto the map.</p>';
+  }
+  function refreshNetwork() {
+    drawNetwork(state.faction, document.getElementById("cls").value, document.getElementById("beta").checked);
+  }
+
+  function planQuery() {
+    var ids = Array.prototype.map.call(document.querySelectorAll("#quests input:checked"), function (c) { return c.value; });
+    return {
+      ids: ids,
+      q: "faction=" + state.faction +
+        "&class=" + document.getElementById("cls").value +
+        "&start=" + document.getElementById("start").value +
+        "&hearth=" + document.getElementById("hearth").value +
+        "&speed=" + document.getElementById("mount").value +
+        "&engineer=" + (document.getElementById("engineer").checked ? 1 : 0) +
+        "&flier=" + (document.getElementById("flier").checked ? 1 : 0) +
+        "&beta=" + (document.getElementById("beta").checked ? 1 : 0) +
+        "&quests=" + ids.join(",")
+    };
+  }
+
+  function plan() {
+    var pq = planQuery();
+    var btn = document.getElementById("plan");
+    if (!pq.ids.length) {
+      document.getElementById("itinerary").innerHTML = '<p class="empty">The quest log is empty. Tick at least one quest above.</p>';
+      return;
+    }
+    btn.disabled = true; btn.textContent = "Consulting the flight master…";
+    say("Planning from " + esc(byId[document.getElementById("start").value].name) + "…", true);
+    call("plan", pq.q).then(function (r) {
+      btn.disabled = false; btn.textContent = "Plan the journey";
+      renderPlan(r);
+    }).catch(function (e) {
+      btn.disabled = false; btn.textContent = "Plan the journey";
+      say("The planner stopped: " + esc(e.message));
+    });
+  }
+
+  function renderPlan(r) {
+    clearRoute();
+    var segs = [], byMode = {};
+    r.steps.forEach(function (st, k) {
+      st.travel.forEach(function (t) {
+        byMode[t.mode] = (byMode[t.mode] || 0) + t.seconds;
+        segs.push({ mode: t.mode, path: t.path, step: k, seconds: t.seconds, magic: !!MAGIC[t.mode] });
+        t.path.forEach(showLabel);
+      });
+    });
+    var parts = buildSegments(segs);
+    drawMarkers(r.steps);
+    animate(parts, Math.min(9000, 1600 + parts.length * 260));
+
+    var travel = 0, work = 0;
+    r.steps.forEach(function (st) { travel += st.seconds; work += st.work; });
+    var box = document.getElementById("itinerary");
+    box.textContent = "";
+    var sum = h("p", { "class": "summary" });
+    sum.innerHTML = "<strong>" + mins(r.seconds) + " minutes</strong> for " + r.stops + " stops: " +
+      mins(travel) + " on the road and " + mins(work) + " doing the quests.";
+    box.appendChild(sum);
+    var ol = h("ol", { "class": "itin" });
+    r.steps.forEach(function (st, k) {
+      var li = h("li", { tabindex: "0", "data-step": k });
+      li.appendChild(h("span", { "class": "n" }, (k + 1) + "."));
+      var what = h("div", { "class": "what" });
+      var label = st.kind === "accept" ? "Accept " : st.kind === "turnin" ? "Hand in " : "Do ";
+      var left = h("span");
+      left.innerHTML = '<span class="kind ' + st.kind + '">' + label + "</span>" + esc(st.name) + ", " + esc(byId[st.place].name);
+      what.appendChild(left);
+      what.appendChild(h("span", null, fmt(st.seconds + st.work)));
+      li.appendChild(what);
+      if (st.travel.length) {
+        var ul = h("ul");
+        st.travel.forEach(function (t) {
+          var row = h("li");
+          row.innerHTML = glyph(t.mode) + "<span>" + esc(t.name || MODE[t.mode] || t.mode) + " to " + esc(byId[t.to].name) + "</span><span>" + fmt(t.seconds) + "</span>";
+          ul.appendChild(row);
+        });
+        li.appendChild(ul);
+      }
+      li.addEventListener("mouseenter", function () { highlight(k); });
+      li.addEventListener("focus", function () { highlight(k); });
+      li.addEventListener("mouseleave", function () { highlight(null); });
+      li.addEventListener("blur", function () { highlight(null); });
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
+    renderLegend(byMode);
+
+    var flown = byMode.fly || 0;
+    say(r.stops + " stops in " + mins(r.seconds) + " minutes, " + mins(flown) + " of them in the air. " +
+      (r.method === "exact" ? "This order is proven fastest." : "Order found by the heuristic.") +
+      " Worked out in " + Math.round(r.ms) + " ms.");
+    var used = [];
+    r.steps.forEach(function (st) { st.travel.forEach(function (t) { if (MAGIC[t.mode] && t.mode !== "portal") used.push(t.name || MODE[t.mode]); }); });
+    if (used.length) say("Spends " + esc(used.join(", ")) + ".");
+  }
+  function highlight(k) {
+    Array.prototype.forEach.call(document.querySelectorAll("#route .seg"), function (p) {
+      var on = k !== null && p.getAttribute("data-step") === String(k);
+      p.classList.toggle("hl", on);
+      p.classList.toggle("dim", k !== null && !on);
+    });
+  }
+  function renderLegend(byMode) {
+    var lg = document.getElementById("legend");
+    lg.textContent = "";
+    Object.keys(byMode).forEach(function (m) {
+      var d = h("div");
+      d.innerHTML = '<svg viewBox="0 0 34 8" aria-hidden="true"><path class="seg ' + m + '" d="M2 4 H32"/></svg><span>' + (MODE[m] || m) + ", " + fmt(byMode[m]) + "</span>";
+      lg.appendChild(d);
+    });
+  }
+
+  // ---------------------------------------------------------------- coverage tab
+  var lastCover = null;
+  function cover() {
+    var btn = document.getElementById("cover");
+    btn.disabled = true; btn.textContent = "Working it out…";
+    var start = document.getElementById("cstart").value;
+    var q = "faction=" + state.cfaction + "&class=" + document.getElementById("ccls").value + "&start=" + start + "&hearth=";
+    say("Covering the " + state.cfaction + " flight network from " + esc(byId[start].name) + "…", true);
+    call("cover", q).then(function (r) {
+      btn.disabled = false; btn.textContent = "Work it out";
+      lastCover = r;
+      var rows = [["atlas", "Atlas (as written)"], ["weighted", "Weighted Atlas"], ["postman", "Rural Postman"]];
+      var html = '<table class="cmp"><thead><tr><th>Method</th><th>Time</th><th>Flights</th><th>Map</th></tr></thead><tbody>';
+      rows.forEach(function (row) {
+        var m = r.methods[row[0]];
+        html += '<tr data-m="' + row[0] + '"><td>' + row[1] + "</td><td>" + fmt(m.seconds) + "</td><td>" + m.covered + " / " + r.required +
+          '</td><td><button data-m="' + row[0] + '">Draw</button></td></tr>';
+      });
+      html += "<tr><td>Lower bound</td><td>" + fmt(r.lowerBound) + "</td><td></td><td></td></tr></tbody></table>";
+      var a = r.methods.atlas.seconds, p = r.methods.postman.seconds;
+      html += '<p class="note">Atlas takes ' + (a / p).toFixed(1) + " times as long as the Rural Postman here. Atlas counts every edge as one step, so a 6-minute boat ride and a 5-second walk cost it the same.</p>";
+      document.getElementById("cmp").innerHTML = html;
+      Array.prototype.forEach.call(document.querySelectorAll("#cmp button"), function (b) {
+        b.addEventListener("click", function () { drawCover(b.getAttribute("data-m")); });
+      });
+      say("Atlas " + fmt(a) + ", weighted Atlas " + fmt(r.methods.weighted.seconds) + ", Rural Postman " + fmt(p) + ".");
+      drawCover("postman");
+    }).catch(function (e) {
+      btn.disabled = false; btn.textContent = "Work it out";
+      say("The planner stopped: " + esc(e.message));
+    });
+  }
+  function drawCover(which) {
+    if (!lastCover) return;
+    clearRoute();
+    Array.prototype.forEach.call(document.querySelectorAll("#cmp tr[data-m]"), function (tr) {
+      tr.classList.toggle("on", tr.getAttribute("data-m") === which);
+    });
+    var steps = lastCover.methods[which].steps;
+    var segs = [];
+    var at = document.getElementById("cstart").value;
+    steps.forEach(function (st) {
+      var from = st.from || at;
+      if (from !== st.to) segs.push({ mode: st.mode, path: [from, st.to], step: 0, seconds: st.seconds, magic: !!MAGIC[st.mode] });
+      at = st.to;
+    });
+    var parts = buildSegments(segs);
+    parts.forEach(function (p) { p.vis.style.opacity = which === "atlas" ? ".55" : ""; });
+    animate(parts, Math.min(14000, 2500 + parts.length * 18));
+  }
+
+  // ---------------------------------------------------------------- wiring
+  function wire() {
+    Array.prototype.forEach.call(document.querySelectorAll("#panel-journey .banner"), function (b) {
+      b.addEventListener("click", function () { setFaction(b.getAttribute("data-faction"), "journey"); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("#panel-cover .banner"), function (b) {
+      b.addEventListener("click", function () { setFaction(b.getAttribute("data-faction"), "cover"); });
+    });
+    ["cls", "beta"].forEach(function (id) { document.getElementById(id).addEventListener("change", refreshNetwork); });
+    document.getElementById("ccls").addEventListener("change", function () { drawNetwork(state.cfaction, this.value, false); });
+    document.getElementById("plan").addEventListener("click", plan);
+    document.getElementById("cover").addEventListener("click", cover);
+    var tabs = [["tab-journey", "panel-journey"], ["tab-cover", "panel-cover"]];
+    tabs.forEach(function (t) {
+      document.getElementById(t[0]).addEventListener("click", function () {
+        tabs.forEach(function (u) {
+          var on = u[0] === t[0];
+          document.getElementById(u[0]).setAttribute("aria-selected", on ? "true" : "false");
+          document.getElementById(u[1]).hidden = !on;
+        });
+        clearRoute();
+        if (t[0] === "tab-cover") drawNetwork(state.cfaction, document.getElementById("ccls").value, false);
+        else refreshNetwork();
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------- start
+  document.getElementById("tip").innerHTML = "<b>Tip:</b> " + TIPS[Math.floor(Math.random() * TIPS.length)];
+  setLoad(8, "Waking the Lua engine…");
+  startWorker();
+  ready.then(function () { return call("world", ""); }).then(function (world) {
+    W = world;
+    W.places.forEach(function (p) { byId[p.id] = p; });
+    drawWorld();
+    fillPlaces(document.getElementById("start"), DEFAULT_START.Alliance);
+    fillPlaces(document.getElementById("hearth"), DEFAULT_HEARTH.Alliance, true);
+    fillPlaces(document.getElementById("cstart"), DEFAULT_START.Alliance);
+    fillQuests();
+    refreshNetwork();
+    wire();
+    say("Welcome, traveller. The map shows every flight path your faction can use.", true);
+    setTimeout(function () { document.getElementById("loading").classList.add("gone"); }, reduceMotion ? 0 : 500);
+  }).catch(function (e) {
+    setLoad(100, "The Lua engine could not start: " + e.message + ". The page fetches the wasmoon VM from cdn.jsdelivr.net, so it needs an internet connection.");
+  });
+})();
+</script>
+</body>
+</html>

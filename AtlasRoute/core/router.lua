@@ -111,13 +111,17 @@ function Router.legs(world, dist, prev, dstState, ctx)
     if (mode == "fly" or mode == "land") and last and last.mode == "fly" then
       last.to = st.to
       last.seconds = last.seconds + st.seconds
+      last.path[#last.path + 1] = st.to
       if mode == "fly" then last.hops = last.hops + 1 end
     elseif mode == "walk" and last and last.mode == "walk" then
       last.to = st.to
       last.seconds = last.seconds + st.seconds
+      last.path[#last.path + 1] = st.to
     else
+      -- path: every node the leg passes through, for drawing it on a map
       legs[#legs + 1] = { mode = (mode == "board") and "fly" or mode, from = st.from, to = st.to,
-                          seconds = st.seconds, name = st.edge.name, hops = 0 }
+                          seconds = st.seconds, name = st.edge.name, hops = 0,
+                          path = { st.from, st.to } }
     end
   end
   return legs

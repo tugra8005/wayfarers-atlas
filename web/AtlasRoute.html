@@ -1,0 +1,971 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AtlasRoute</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,500;0,700;1,400&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+<style>
+:root {
+  --desk: #2b1b11;
+  --desk-hi: #4a2f1c;
+  --parch: #ead8ab;
+  --parch-deep: #c9a66a;
+  --ink: #3b2614;
+  --ink-soft: #6b4a2b;
+  --gold: #b8902f;
+  --gold-hi: #e3c15d;
+  --sea: #a7b5a6;
+  --quest: #f2c94c;
+  --alliance: #2f4d8a;
+  --horde: #8a2318;
+  --wax: #6e1f16;
+  /* route inks */
+  --i-walk: #3b2614;
+  --i-fly: #253f7a;
+  --i-boat: #1f6b66;
+  --i-zep: #8a2318;
+  --i-magic: #6a2c8a;
+  --fell: "IM Fell English", "Iowan Old Style", Georgia, serif;
+  --fell-sc: "IM Fell English SC", "IM Fell English", Georgia, serif;
+  --body: "Alegreya", Georgia, serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background:
+    radial-gradient(120% 80% at 50% 0%, var(--desk-hi) 0%, var(--desk) 55%, #1d120b 100%);
+  color: var(--parch);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+button, select, input { font: inherit; }
+:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 2px; }
+
+/* ---------- header ---------- */
+.top {
+  max-width: 1440px; margin: 0 auto; padding: 22px 24px 6px;
+  display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap;
+}
+.top h1 {
+  font-family: var(--fell); font-weight: 400; font-size: 44px; line-height: 1;
+  margin: 0; color: var(--gold-hi); letter-spacing: .01em;
+  text-shadow: 0 1px 0 #000, 0 0 18px rgba(227,193,93,.15);
+}
+.top p { margin: 0; color: #d9c595; font-style: italic; max-width: 62ch; }
+.tabs { margin-left: auto; display: flex; gap: 4px; }
+.tab {
+  background: transparent; color: #d9c595; border: 1px solid #6b4a2b;
+  padding: 6px 14px; font-family: var(--fell); font-size: 18px; cursor: pointer;
+  border-radius: 3px 3px 0 0; border-bottom-color: transparent;
+}
+.tab[aria-selected="true"] { background: var(--parch); color: var(--ink); border-color: var(--gold); }
+
+/* ---------- layout ---------- */
+.stage {
+  max-width: 1440px; margin: 0 auto; padding: 0 24px 28px;
+  display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr); gap: 22px;
+}
+@media (max-width: 980px) { .stage { grid-template-columns: 1fr; padding: 0 12px 20px; } .top { padding: 16px 12px 4px; } .top h1 { font-size: 36px; } .tabs { margin-left: 0; } }
+
+/* ---------- the map ---------- */
+.mapwrap {
+  position: relative;
+  border: 3px double var(--gold);
+  outline: 1px solid #000; outline-offset: 0;
+  box-shadow: 0 18px 40px rgba(0,0,0,.55), inset 0 0 0 1px rgba(0,0,0,.4);
+  background: var(--parch);
+}
+#map { display: block; width: 100%; height: auto; }
+.chronicle {
+  position: absolute; left: 14px; bottom: 14px; width: min(440px, 62%);
+  max-height: 128px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
+  background: rgba(18, 11, 6, .72); border: 1px solid rgba(184,144,47,.45);
+  padding: 6px 10px; font-size: 14px; line-height: 1.35; pointer-events: none;
+}
+.chronicle div { color: var(--quest); text-shadow: 0 1px 1px #000; }
+.chronicle div b { color: #ffe08a; font-weight: 500; }
+.chronicle div.quiet { color: #e9dcb6; }
+@media (max-width: 640px) { .chronicle { position: static; width: auto; max-height: none; border: 0; border-top: 1px solid var(--gold); } }
+
+/* map text */
+.lbl { font-family: var(--fell-sc); font-size: 11px; fill: var(--ink); paint-order: stroke; stroke: rgba(234,216,171,.85); stroke-width: 3px; stroke-linejoin: round; }
+.lbl.city { font-size: 13.5px; }
+.lbl.route { font-size: 12px; fill: #1e1209; }
+.lbl.hidden { display: none; }
+.continent { font-family: var(--fell); font-style: italic; font-size: 30px; fill: rgba(59,38,20,.55); letter-spacing: .06em; }
+.seaname { font-family: var(--fell); font-style: italic; font-size: 17px; fill: rgba(31,74,70,.6); letter-spacing: .3em; }
+.place { fill: var(--ink); }
+.place:hover { fill: var(--wax); cursor: help; }
+.fm { stroke: #1e1209; stroke-width: .6; }
+.netline { fill: none; stroke: var(--ink-soft); stroke-width: .8; stroke-dasharray: 1.5 3; opacity: .55; }
+.lane { fill: none; stroke: var(--i-boat); stroke-width: .9; stroke-dasharray: 5 4; opacity: .45; }
+.lane.zep { stroke: var(--i-zep); stroke-dasharray: 8 3 2 3; }
+.lane.sky { stroke: #8a6a12; stroke-dasharray: 2 3; }
+.seg { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.seg.walk { stroke: var(--i-walk); stroke-width: 2.4; stroke-dasharray: .5 4.5; }
+.seg.fly { stroke: var(--i-fly); stroke-width: 2.4; stroke-dasharray: 9 4; }
+.seg.boat, .seg.tram { stroke: var(--i-boat); stroke-width: 2.6; stroke-dasharray: 2 4; }
+.seg.zeppelin { stroke: var(--i-zep); stroke-width: 2.6; stroke-dasharray: 10 3 2 3; }
+.seg.skyship { stroke: #8a6a12; stroke-width: 2.6; stroke-dasharray: 10 3 2 3; }
+.seg.teleport, .seg.hearth, .seg.device, .seg.portal { stroke: var(--i-magic); stroke-width: 1.6; stroke-dasharray: 1 5; opacity: .9; }
+.seg.hl { stroke-width: 4.5; }
+.seg.dim { opacity: .18; }
+.marker .disc { fill: var(--wax); stroke: var(--gold-hi); stroke-width: 1.2; }
+.marker .disc.obj { fill: #4b3420; }
+.marker .num { font-family: var(--body); font-weight: 700; font-size: 9.5px; fill: #f6e7bd; text-anchor: middle; }
+.marker .glyphq { font-family: var(--fell); font-size: 20px; text-anchor: middle; fill: var(--quest); paint-order: stroke; stroke: #2a1a08; stroke-width: 3px; }
+.spark { fill: none; stroke: var(--i-magic); stroke-width: 1.2; }
+#token circle.ring { fill: var(--parch); stroke: var(--wax); stroke-width: 2; }
+
+/* ---------- the journal ---------- */
+.journal {
+  color: var(--ink);
+  background:
+    radial-gradient(140% 90% at 30% 10%, rgba(255,250,230,.55), transparent 60%),
+    radial-gradient(120% 120% at 100% 100%, rgba(150,105,45,.35), transparent 55%),
+    var(--parch);
+  border: 3px double var(--gold); outline: 1px solid #000;
+  box-shadow: 0 18px 40px rgba(0,0,0,.55);
+  padding: 18px 20px 22px;
+  align-self: start;
+}
+.journal h2 {
+  font-family: var(--fell); font-weight: 400; font-size: 25px; margin: 0 0 8px; color: var(--wax);
+  border-bottom: 1px solid rgba(59,38,20,.35); padding-bottom: 2px;
+}
+.journal h2 + p { margin-top: 0; }
+.journal section + section { margin-top: 18px; }
+.row { display: grid; grid-template-columns: 9.5em 1fr; gap: 6px 10px; align-items: center; margin: 6px 0; }
+.row label { font-style: italic; color: var(--ink-soft); }
+@media (max-width: 480px) { .row { grid-template-columns: 6.8em 1fr; } .journal { padding: 14px 12px 18px; } }
+select {
+  width: 100%; background: #f4e6c0; color: var(--ink); border: 1px solid #8a6a3a; border-radius: 2px;
+  padding: 4px 6px;
+}
+.banners { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 10px; }
+.banner {
+  border: 1px solid #000; color: #f1e3bd; padding: 7px 8px 9px; cursor: pointer;
+  font-family: var(--fell); font-size: 19px; text-align: center; opacity: .55;
+  clip-path: polygon(0 0, 100% 0, 100% 82%, 50% 100%, 0 82%);
+}
+.banner.alliance { background: linear-gradient(#3b5ea3, var(--alliance)); }
+.banner.horde { background: linear-gradient(#a8331f, var(--horde)); }
+.banner[aria-pressed="true"] { opacity: 1; box-shadow: inset 0 0 0 2px var(--gold-hi); }
+.checks { display: grid; gap: 4px; margin-top: 6px; }
+.checks label { display: flex; gap: 8px; align-items: baseline; cursor: pointer; }
+.checks small { color: var(--ink-soft); }
+input[type=checkbox] { accent-color: var(--wax); width: 15px; height: 15px; transform: translateY(2px); }
+.quests { list-style: none; padding: 0; margin: 4px 0 0; }
+.quests li { padding: 5px 0 5px 0; border-bottom: 1px dotted rgba(59,38,20,.3); }
+.quests label { display: grid; grid-template-columns: 18px 16px 1fr; gap: 6px; align-items: baseline; cursor: pointer; }
+.qmark { font-family: var(--fell); color: #b8860b; font-size: 19px; text-shadow: 0 0 1px #2a1a08, 0 1px 0 #2a1a08; line-height: 1; }
+.qname { font-weight: 500; }
+.qroute { grid-column: 3; font-size: 14px; color: var(--ink-soft); }
+.go {
+  margin-top: 14px; width: 100%; cursor: pointer;
+  background: linear-gradient(#83281c, var(--wax)); color: #f6e7bd;
+  border: 2px solid var(--gold); outline: 1px solid #000; border-radius: 3px;
+  font-family: var(--fell); font-size: 21px; padding: 7px 10px 9px;
+  text-shadow: 0 1px 0 #000;
+}
+.go:hover { background: linear-gradient(#93301f, #7a2418); }
+.go:disabled { opacity: .6; cursor: progress; }
+.summary { font-size: 18px; margin: 4px 0 10px; }
+.summary strong { font-family: var(--fell); font-weight: 400; font-size: 24px; color: var(--wax); }
+.itin { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+.itin > li { position: relative; padding: 6px 0 6px 34px; border-bottom: 1px dotted rgba(59,38,20,.3); cursor: default; }
+.itin > li:hover, .itin > li:focus-within { background: rgba(184,144,47,.12); }
+.itin .n { position: absolute; left: 0; top: 7px; width: 26px; text-align: right; font-family: var(--fell); color: var(--ink-soft); }
+.itin .what { display: flex; justify-content: space-between; gap: 10px; }
+.itin .what span:last-child { white-space: nowrap; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.itin .kind { font-family: var(--fell); }
+.itin .kind.accept::before { content: "! "; color: #b8860b; }
+.itin .kind.turnin::before { content: "? "; color: #b8860b; }
+.itin ul { list-style: none; margin: 2px 0 0; padding: 0; font-size: 14.5px; color: var(--ink-soft); }
+.itin ul li { display: grid; grid-template-columns: 22px 1fr auto; gap: 6px; align-items: center; }
+.itin ul li span:last-child { font-variant-numeric: tabular-nums; }
+.glyph { width: 18px; height: 14px; }
+.empty { font-style: italic; color: var(--ink-soft); }
+.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; font-size: 14px; margin-top: 10px; color: var(--ink-soft); }
+.legend div { display: flex; align-items: center; gap: 8px; }
+.legend svg { width: 34px; height: 8px; flex: none; }
+table.cmp { width: 100%; border-collapse: collapse; font-size: 15.5px; margin: 6px 0 8px; }
+table.cmp th { font-family: var(--fell); font-weight: 400; text-align: left; color: var(--wax); border-bottom: 1px solid rgba(59,38,20,.4); padding: 3px 4px; }
+table.cmp td { padding: 4px; border-bottom: 1px dotted rgba(59,38,20,.3); font-variant-numeric: tabular-nums; }
+table.cmp td:first-child { font-style: italic; }
+table.cmp tr.on td { background: rgba(184,144,47,.18); }
+table.cmp button { background: none; border: 1px solid #8a6a3a; color: var(--ink); cursor: pointer; padding: 1px 8px; border-radius: 2px; }
+.note { font-size: 14.5px; color: var(--ink-soft); }
+footer { max-width: 1440px; margin: 0 auto; padding: 0 24px 26px; color: #a8936a; font-size: 13.5px; }
+footer p { margin: 2px 0; max-width: 100ch; }
+
+/* ---------- loading screen ---------- */
+#loading {
+  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
+  background: radial-gradient(80% 70% at 50% 45%, #3a2616, #120b06 75%);
+  transition: opacity .6s ease;
+}
+#loading.gone { opacity: 0; pointer-events: none; }
+.lcard { text-align: center; max-width: 560px; padding: 24px; }
+.lcard h1 { font-family: var(--fell); font-weight: 400; font-size: 56px; color: var(--gold-hi); margin: 0 0 4px; text-shadow: 0 2px 0 #000; }
+.lbar { margin: 26px auto 10px; width: min(460px, 86vw); height: 16px; border: 2px solid var(--gold); outline: 1px solid #000; background: #120b06; padding: 2px; }
+.lbar i { display: block; height: 100%; width: 8%; background: linear-gradient(#e0b04a, #9c6d13); transition: width .5s ease; }
+.lstatus { color: #d9c595; font-style: italic; }
+.tip { margin-top: 30px; color: var(--quest); font-size: 17px; }
+.tip b { color: #ffe08a; font-weight: 500; }
+@media (prefers-reduced-motion: reduce) { #loading, .lbar i { transition: none; } }
+</style>
+</head>
+<body>
+
+<div id="loading" role="status" aria-live="polite">
+  <div class="lcard">
+    <h1>AtlasRoute</h1>
+    <div class="lbar"><i id="lprog"></i></div>
+    <div class="lstatus" id="lstatus">Waking the Lua engine…</div>
+    <p class="tip" id="tip"></p>
+  </div>
+</div>
+
+<header class="top">
+  <h1>AtlasRoute</h1>
+  <p>The fastest way through your quest log, by foot, gryphon, boat, zeppelin and hearthstone. Built on Savaş Takan's Atlas, for World of Warcraft: Forever.</p>
+  <nav class="tabs" role="tablist" aria-label="View">
+    <button class="tab" role="tab" id="tab-journey" aria-selected="true" aria-controls="panel-journey">Plan a journey</button>
+    <button class="tab" role="tab" id="tab-cover" aria-selected="false" aria-controls="panel-cover">Ride every flight path</button>
+  </nav>
+</header>
+
+<main class="stage">
+  <div class="mapwrap">
+    <svg id="map" viewBox="0 0 1000 1060" role="img" aria-label="Map of Kalimdor, the Eastern Kingdoms and Zephras Isle with the planned route">
+      <defs>
+        <filter id="paper" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3" result="n"/>
+          <feColorMatrix in="n" type="matrix" values="0 0 0 0 .35  0 0 0 0 .24  0 0 0 0 .1  0 0 0 .22 0"/>
+        </filter>
+        <filter id="stain" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency=".008" numOctaves="3" seed="11"/>
+          <feColorMatrix type="matrix" values="0 0 0 0 .45  0 0 0 0 .3  0 0 0 0 .12  0 0 0 .55 -.18"/>
+        </filter>
+        <filter id="land" x="-5%" y="-5%" width="110%" height="110%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="11" result="b"/>
+          <feComponentTransfer in="b" result="goo">
+            <feFuncA type="discrete" tableValues="0 0 0 0 1 1 1 1 1 1"/>
+          </feComponentTransfer>
+          <feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="3" seed="7" result="noise"/>
+          <feDisplacementMap in="goo" in2="noise" scale="16" xChannelSelector="R" yChannelSelector="G" result="shape"/>
+          <feMorphology in="shape" operator="dilate" radius="2" result="d2"/>
+          <feComposite in="d2" in2="shape" operator="out" result="coastRing"/>
+          <feMorphology in="shape" operator="dilate" radius="7" result="d7"/>
+          <feMorphology in="shape" operator="dilate" radius="5" result="d5"/>
+          <feComposite in="d7" in2="d5" operator="out" result="wave1"/>
+          <feMorphology in="shape" operator="dilate" radius="13" result="d13"/>
+          <feMorphology in="shape" operator="dilate" radius="12" result="d12"/>
+          <feComposite in="d13" in2="d12" operator="out" result="wave2"/>
+          <feFlood flood-color="#efe0b6"/><feComposite in2="shape" operator="in" result="fill"/>
+          <feFlood flood-color="#3b2614"/><feComposite in2="coastRing" operator="in" result="coast"/>
+          <feFlood flood-color="#1f4a46" flood-opacity=".35"/><feComposite in2="wave1" operator="in" result="w1"/>
+          <feFlood flood-color="#1f4a46" flood-opacity=".2"/><feComposite in2="wave2" operator="in" result="w2"/>
+          <feMerge><feMergeNode in="w2"/><feMergeNode in="w1"/><feMergeNode in="fill"/><feMergeNode in="coast"/></feMerge>
+        </filter>
+        <radialGradient id="burn" cx="50%" cy="50%" r="72%">
+          <stop offset="62%" stop-color="#5a3510" stop-opacity="0"/>
+          <stop offset="100%" stop-color="#4a2a0b" stop-opacity=".55"/>
+        </radialGradient>
+        <symbol id="g-wing" viewBox="-6 -6 12 12"><path d="M-5 1 C-3 -4 1 -5 5 -4 C2 -3 1 -1 3 0 C0 0 -1 1 0 3 C-2 2 -4 2 -5 1Z"/></symbol>
+      </defs>
+      <rect width="1000" height="1060" fill="#ead8ab"/>
+      <rect width="1000" height="1060" fill="#a7b5a6" opacity=".45"/>
+      <rect width="1000" height="1060" filter="url(#stain)"/>
+      <g id="lands"></g>
+      <g id="grid" opacity=".18" stroke="#3b2614" stroke-width=".5"></g>
+      <g id="names"></g>
+      <g id="network"></g>
+      <g id="places"></g>
+      <g id="route"></g>
+      <g id="markers"></g>
+      <g id="labels"></g>
+      <g id="token" style="display:none"><circle class="ring" r="7"/><circle r="2.6" fill="#6e1f16"/></g>
+      <g id="compass" transform="translate(930 975)"></g>
+      <rect width="1000" height="1060" filter="url(#paper)" style="mix-blend-mode:multiply" pointer-events="none"/>
+      <rect width="1000" height="1060" fill="url(#burn)" pointer-events="none"/>
+    </svg>
+    <div class="chronicle" id="chronicle" aria-live="polite"></div>
+  </div>
+
+  <aside class="journal">
+    <div id="panel-journey" role="tabpanel" aria-labelledby="tab-journey">
+      <section>
+        <h2>Your traveller</h2>
+        <div class="banners" role="group" aria-label="Faction">
+          <button class="banner alliance" data-faction="Alliance" aria-pressed="true">Alliance</button>
+          <button class="banner horde" data-faction="Horde" aria-pressed="false">Horde</button>
+        </div>
+        <div class="row"><label for="cls">Class</label>
+          <select id="cls">
+            <option value="">Warrior, rogue, priest…</option>
+            <option value="MAGE">Mage</option>
+            <option value="DRUID">Druid</option>
+            <option value="SHAMAN">Shaman</option>
+          </select></div>
+        <div class="row"><label for="start">Standing in</label><select id="start"></select></div>
+        <div class="row"><label for="hearth">Hearthstone</label><select id="hearth"></select></div>
+        <div class="row"><label for="mount">Riding</label>
+          <select id="mount">
+            <option value="7">On foot</option>
+            <option value="11.2" selected>Apprentice riding, 60%</option>
+            <option value="14">Journeyman riding, 100%</option>
+          </select></div>
+        <div class="checks">
+          <label><input type="checkbox" id="engineer"> <span>Engineering trinkets in the bags <small>(Everlook ripper, Gadgetzan transporter)</small></span></label>
+          <label><input type="checkbox" id="flier"> <span>Frequent Flier <small>(+20% flight speed)</small></span></label>
+          <label><input type="checkbox" id="beta"> <span>Trust beta reports <small>(Dalaran portal, Teleport: Dalaran)</small></span></label>
+        </div>
+      </section>
+      <section>
+        <h2>Quest log</h2>
+        <ul class="quests" id="quests"></ul>
+        <button class="go" id="plan">Plan the journey</button>
+      </section>
+      <section>
+        <h2>The road ahead</h2>
+        <div id="itinerary"><p class="empty">Tick some quests and plan the journey. The route will be inked onto the map.</p></div>
+        <div class="legend" id="legend"></div>
+      </section>
+    </div>
+
+    <div id="panel-cover" role="tabpanel" aria-labelledby="tab-cover" hidden>
+      <section>
+        <h2>Ride every flight path</h2>
+        <p class="note">Every flight connection your faction can use, flown once in each direction. This is the problem Atlas was written for: cover every edge of a graph in one walk. Three ways to do it, on the same map:</p>
+        <div class="banners" role="group" aria-label="Faction">
+          <button class="banner alliance" data-faction="Alliance" aria-pressed="true">Alliance</button>
+          <button class="banner horde" data-faction="Horde" aria-pressed="false">Horde</button>
+        </div>
+        <div class="row"><label for="ccls">Class</label>
+          <select id="ccls"><option value="">Not a mage</option><option value="MAGE">Mage</option></select></div>
+        <div class="row"><label for="cstart">Starting from</label><select id="cstart"></select></div>
+        <button class="go" id="cover">Work it out</button>
+      </section>
+      <section>
+        <div id="cmp"><p class="empty">The comparison appears here.</p></div>
+        <p class="note">Atlas is the Lua port of Savaş Takan's Java code, run as he wrote it. The weighted Atlas scores chains by new edges, then by time, and can jump with teleports when it gets stuck. The Rural Postman joins the flight network's pieces, balances it with a min-cost flow and walks an Euler path. The lower bound is every flight flown once.</p>
+      </section>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <p>Coursework for Savaş Takan by Alparslan Tuğra Şahin. Fan-made and unofficial; not affiliated with Blizzard Entertainment. Every number on this page comes from the addon's own Lua code, running in your browser through the wasmoon Lua VM.</p>
+  <p>Map positions are hand-placed approximations, and boat and skyship times are estimates. Forever's additions follow the community guides listed in the README.</p>
+</footer>
+
+<script type="application/json" id="lua-sources">[{"name":"core/heap.lua","src":"-- Binary min-heap keyed by a number. Used by Dijkstra and min-cost flow.\nlocal _, ns = ...\n\nlocal Heap = {}\nHeap.__index = Heap\n\nfunction Heap.new()\n  return setmetatable({ keys = {}, vals = {}, n = 0 }, Heap)\nend\n\nfunction Heap:push(key, val)\n  local n = self.n + 1\n  self.n = n\n  local keys, vals = self.keys, self.vals\n  keys[n], vals[n] = key, val\n  while n > 1 do\n    local p = math.floor(n / 2)\n    if keys[p] <= keys[n] then break end\n    keys[p], keys[n] = keys[n], keys[p]\n    vals[p], vals[n] = vals[n], vals[p]\n    n = p\n  end\nend\n\nfunction Heap:pop()\n  local n = self.n\n  if n == 0 then return nil end\n  local keys, vals = self.keys, self.vals\n  local topKey, topVal = keys[1], vals[1]\n  keys[1], vals[1] = keys[n], vals[n]\n  keys[n], vals[n] = nil, nil\n  n = n - 1\n  self.n = n\n  local i = 1\n  while true do\n    local l, r, m = 2 * i, 2 * i + 1, i\n    if l <= n and keys[l] < keys[m] then m = l end\n    if r <= n and keys[r] < keys[m] then m = r end\n    if m == i then break end\n    keys[m], keys[i] = keys[i], keys[m]\n    vals[m], vals[i] = vals[i], vals[m]\n    i = m\n  end\n  return topKey, topVal\nend\n\nfunction Heap:empty() return self.n == 0 end\n\nns.Heap = Heap\n"},{"name":"core/fsm.lua","src":"-- Edge-labelled directed graph in the shape the original Atlas uses (Graph.java / Edge.java),\n-- plus a parser for the KISS2-like \".fsm\" lines it reads: \"state -- input / output -> next\".\n--\n-- Java's HashSet<Integer> iterates by bucket index, not insertion order, and Atlas's result\n-- depends on that order. outEdges() reproduces it (bucket = label mod capacity, capacity\n-- starting at 16 and doubling past 0.75 load) so the Lua port can be checked edge for edge.\nlocal _, ns = ...\n\nlocal FSM = {}\nFSM.__index = FSM\n\nfunction FSM.new()\n  return setmetatable({ edges = {}, out = {}, m = 0, starts = {} }, FSM)\nend\n\n-- label is 0-based like the Java code; weight defaults to 1.\nfunction FSM:addEdge(source, dest, input, output, weight)\n  local label = self.m\n  self.m = label + 1\n  self.edges[label] = { label = label, source = source, dest = dest,\n                        input = input, output = output, weight = weight or 1 }\n  self.out[source] = self.out[source] or {}\n  self.out[dest] = self.out[dest] or {}\n  local list = self.out[source]\n  list[#list + 1] = label\n  self._order = nil\n  if source == 0 then self.starts[#self.starts + 1] = label end\n  return label\nend\n\nlocal function javaCapacity(size)\n  local cap = 16\n  while size > cap * 0.75 do cap = cap * 2 end\n  return cap\nend\n\n-- Out-edge labels of a node in java.util.HashSet<Integer> iteration order.\nfunction FSM:outEdges(node)\n  self._order = self._order or {}\n  local cached = self._order[node]\n  if cached then return cached end\n  local list = self.out[node] or {}\n  local cap = javaCapacity(#list)\n  local idx = {}\n  for i, label in ipairs(list) do idx[label] = i end\n  local sorted = {}\n  for i = 1, #list do sorted[i] = list[i] end\n  table.sort(sorted, function(a, b)\n    local ba, bb = a % cap, b % cap\n    if ba ~= bb then return ba < bb end\n    return idx[a] < idx[b]\n  end)\n  self._order[node] = sorted\n  return sorted\nend\n\n-- First element of the Java HashSet of start edges (edges leaving state 0).\nfunction FSM:firstStart()\n  local cap = javaCapacity(#self.starts)\n  local best\n  for _, l in ipairs(self.starts) do\n    if best == nil or (l % cap) < (best % cap) then best = l end\n  end\n  return best\nend\n\nfunction FSM.parse(text)\n  local g = FSM.new()\n  for line in text:gmatch(\"[^\\r\\n]+\") do\n    local s, i, o, d = line:match(\"^(%d+)%s%-%-%s(%d+)%s/%s(%d+)%s%->%s(%d+)\")\n    if s then g:addEdge(tonumber(s), tonumber(d), tonumber(i), tonumber(o), 1) end\n  end\n  return g\nend\n\nfunction FSM:numNodes()\n  local n = 0\n  for _ in pairs(self.out) do n = n + 1 end\n  return n\nend\n\nns.FSM = FSM\n"},{"name":"core/atlas.lua","src":"-- Faithful Lua port of Atlas.java (github.com/savastakan/atlas @ 1748ccf).\n--\n-- Atlas covers every edge of a graph with one walk. Each round it:\n--   1. orders the edges reachable from the walk's last edge by DFS post-order,\n--   2. runs a longest-path DP over that order, where an edge is worth 1 if it is not\n--      yet on the walk and 0 if it is,\n--   3. appends the best-scoring chain to the walk,\n-- and stops when no chain adds a new edge. Edge weights are ignored (every edge costs 1).\n--\n-- Differences from the Java code, none of which change the output:\n--   * the DFS is iterative (Java recursion depth = edge count);\n--   * \"path.contains(e)\" is a counter lookup instead of a linear list scan;\n--   * if no edge can be relaxed the Java code indexes cost[Integer.MIN_VALUE] and throws;\n--     here that case ends the walk.\nlocal _, ns = ...\n\nlocal Atlas = {}\nlocal NEG = -math.huge\n\n-- Post-order DFS over edges, matching Atlas.dfs(). Marks reached edges in cost[] with NEG.\nlocal function dfsOrder(g, startLabel, cost)\n  local stack = {}\n  local frames = { { e = startLabel, i = 0 } }\n  cost[startLabel] = NEG\n  while #frames > 0 do\n    local f = frames[#frames]\n    local nbrs = g:outEdges(g.edges[f.e].dest)\n    local advanced = false\n    while f.i < #nbrs do\n      f.i = f.i + 1\n      local n = nbrs[f.i]\n      if cost[n] ~= NEG then\n        cost[n] = NEG\n        frames[#frames + 1] = { e = n, i = 0 }\n        advanced = true\n        break\n      end\n    end\n    if not advanced then\n      stack[#stack + 1] = f.e\n      frames[#frames] = nil\n    end\n  end\n  return stack\nend\n\n-- Returns the walk as a list of edge labels.\nfunction Atlas.longestPath(g, start, keepLast)\n  local path = { start }\n  local onPath = { [start] = 1 }\n  while true do\n    local currentStart = path[#path]\n    path[#path] = nil\n    onPath[currentStart] = onPath[currentStart] - 1\n\n    local cost = {}\n    for l = 0, g.m - 1 do cost[l] = 0 end\n    local stack = dfsOrder(g, currentStart, cost)\n    local comeFrom = {}\n    for l = 0, g.m - 1 do comeFrom[l] = cost[l] end\n    cost[currentStart] = 0\n\n    local visited = {}\n    local currentCost, current = NEG, nil\n    for s = #stack, 1, -1 do\n      local e = stack[s]\n      visited[e] = true\n      for _, n in ipairs(g:outEdges(g.edges[e].dest)) do\n        if not visited[n] then\n          local newCost = cost[e] + (((onPath[n] or 0) > 0) and 0 or 1)\n          if cost[n] < newCost then\n            cost[n] = newCost\n            comeFrom[n] = e\n            if currentCost < cost[n] then\n              currentCost = cost[n]\n              current = n\n            end\n          end\n        end\n      end\n    end\n\n    if current == nil or cost[current] <= 0 then\n      -- Java returns here after path.removeLast(), so the walk's final edge is dropped.\n      -- keepLast = true puts it back (see Atlas.stats: the drop can leave an edge uncovered).\n      if keepLast then\n        path[#path + 1] = currentStart\n        onPath[currentStart] = onPath[currentStart] + 1\n      end\n      return path\n    end\n    -- Java: path.add(current); then walk comeFrom back, inserting each before it.\n    local chain = { current }\n    while comeFrom[current] >= 0 do\n      current = comeFrom[current]\n      chain[#chain + 1] = current\n    end\n    for i = #chain, 1, -1 do\n      local e = chain[i]\n      path[#path + 1] = e\n      onPath[e] = (onPath[e] or 0) + 1\n    end\n  end\nend\n\n-- Same string Atlas.run() returns: comma-separated inputs along the walk.\nfunction Atlas.testSuite(g, path)\n  local parts = {}\n  for i, e in ipairs(path) do parts[i] = tostring(g.edges[e].input) end\n  return table.concat(parts, \",\")\nend\n\nfunction Atlas.run(g, keepLast)\n  local path = Atlas.longestPath(g, g:firstStart(), keepLast)\n  return Atlas.testSuite(g, path), path\nend\n\n-- How many distinct edges the walk covers, and its total weight.\nfunction Atlas.stats(g, path)\n  local seen, distinct, weight = {}, 0, 0\n  for _, e in ipairs(path) do\n    if not seen[e] then seen[e] = true; distinct = distinct + 1 end\n    weight = weight + g.edges[e].weight\n  end\n  return { length = #path, covered = distinct, total = g.m, weight = weight }\nend\n\nns.Atlas = Atlas\n"},{"name":"core/world.lua","src":"-- Multimodal travel graph of the game world.\n--\n-- Nodes:\n--   ground nodes  - places you can stand at (towns, quest spots, docks)\n--   air nodes     - one per flight master, \"in the flight network\"\n-- Edges (all costs in seconds):\n--   walk      ground <-> ground, same continent, k nearest neighbours\n--   board     ground -> air   (talking to the flight master; air nodes are faction-gated)\n--   fly       air <-> air     (one flight link; chained links are one continuous flight)\n--   land      air -> ground\n--   boat / zeppelin / tram   ground <-> ground, cost = ride + expected wait (half a cycle)\n-- Teleports (edges from *every* ground node, not stored per node):\n--   mage teleports (class-gated), hearthstone (one use per plan: see router.lua)\n--\n-- Splitting each flight master into a ground and an air node is what lets a multi-hop flight\n-- cost one boarding instead of one per hop, the same as the in-game taxi.\nlocal _, ns = ...\n\nlocal World = {}\nWorld.__index = World\n\nWorld.WALK_DETOUR = 1.3   -- roads and terrain vs. straight line\nWorld.FLY_DETOUR = 1.15\nWorld.FLY_SPEED = 30      -- yards / second, taxi\nWorld.BOARD_TIME = 5      -- seconds to talk to the flight master\nWorld.CAST_TIME = 10      -- hearthstone and mage teleport cast\n\nfunction World.new()\n  return setmetatable({\n    nodes = {},       -- index -> node\n    byId = {},        -- id -> index\n    adj = {},         -- index -> list of edges\n    teleports = {},   -- list of {to=index, mode=, cost=, faction=, class=}\n    flightLinks = {}, -- list of {a=index, b=index} (air nodes)\n  }, World)\nend\n\nlocal function dist(a, b)\n  local dx, dy = a.x - b.x, a.y - b.y\n  return math.sqrt(dx * dx + dy * dy)\nend\nWorld.dist = dist\n\nfunction World:_add(node)\n  local i = #self.nodes + 1\n  node.index = i\n  self.nodes[i] = node\n  self.byId[node.id] = i\n  self.adj[i] = {}\n  return i\nend\n\nlocal GATES = { \"faction\", \"class\", \"item\", \"spell\", \"unconfirmed\", \"name\" }\n\nfunction World:edge(from, to, mode, cost, gate)\n  local e = { from = from, to = to, mode = mode, cost = cost }\n  if gate then for _, k in ipairs(GATES) do e[k] = gate[k] end end\n  local list = self.adj[from]\n  list[#list + 1] = e\n  return e\nend\n\n-- place = {id, name, zone, continent, x, y}\nfunction World:addPlace(p)\n  p.kind = \"ground\"\n  return self:_add(p)\nend\n\nfunction World:index(id)\n  local i = self.byId[id]\n  if not i then error(\"unknown place: \" .. tostring(id), 2) end\n  return i\nend\n\n-- faction = \"Alliance\", \"Horde\" or nil (neutral); class = only that class may use it;\n-- unconfirmed = only reported from the beta\nfunction World:addFlightMaster(placeId, faction, class, unconfirmed)\n  local g = self:index(placeId)\n  local p = self.nodes[g]\n  local a = self:_add({ id = \"air:\" .. placeId, name = p.name .. \" (flight master)\",\n                        zone = p.zone, continent = p.continent, x = p.x, y = p.y,\n                        kind = \"air\", ground = g, faction = faction, class = class })\n  self:edge(g, a, \"board\", World.BOARD_TIME, { faction = faction, class = class, unconfirmed = unconfirmed })\n  self:edge(a, g, \"land\", 0)\n  return a\nend\n\n-- opts = {class = \"DRUID\", unconfirmed = true}\nfunction World:addFlightLink(idA, idB, opts)\n  opts = opts or {}\n  local a, b = self:index(\"air:\" .. idA), self:index(\"air:\" .. idB)\n  local na, nb = self.nodes[a], self.nodes[b]\n  local cost = dist(na, nb) * World.FLY_DETOUR / World.FLY_SPEED\n  -- a link is usable only if the rider's faction can use both ends\n  local gate = { faction = na.faction or nb.faction, class = opts.class or na.class or nb.class,\n                 unconfirmed = opts.unconfirmed }\n  self:edge(a, b, \"fly\", cost, gate)\n  self:edge(b, a, \"fly\", cost, gate)\n  self.flightLinks[#self.flightLinks + 1] = { a = a, b = b }\nend\n\n-- t = {from, to, mode, ride, cycle, faction, oneWay, unconfirmed, name}\nfunction World:addTransport(t)\n  local a, b = self:index(t.from), self:index(t.to)\n  local cost = t.ride + (t.cycle or 0) / 2\n  local gate = { faction = t.faction, unconfirmed = t.unconfirmed, name = t.name }\n  self:edge(a, b, t.mode, cost, gate)\n  if not t.oneWay then self:edge(b, a, t.mode, cost, gate) end\nend\n\n-- t = {to | toBind, mode, cost, faction, class, item, spell, limited, unconfirmed, name}\n--   limited  = usable once per plan (cooldown longer than a plan)\n--   toBind   = goes to the hearthstone's bind location (Astral Recall)\n--   item     = needs this item in the bags (engineering devices)\n--   spell    = spell id, checked in game with IsSpellKnown\nfunction World:addTeleport(t)\n  self.teleports[#self.teleports + 1] = {\n    to = t.to and self:index(t.to), toBind = t.toBind, mode = t.mode,\n    cost = t.cost or World.CAST_TIME, faction = t.faction, class = t.class, item = t.item,\n    spell = t.spell, limited = t.limited, unconfirmed = t.unconfirmed, name = t.name,\n  }\nend\n\n-- Walking edges: each ground node to its k nearest ground nodes on the same continent,\n-- in both directions, plus any explicit pairs given in `extra` (e.g. a mountain pass).\nfunction World:connectWalking(k, extra)\n  k = k or 4\n  local ground = {}\n  for i, n in ipairs(self.nodes) do\n    if n.kind == \"ground\" then ground[#ground + 1] = i end\n  end\n  -- k-nearest only within a region (default: the continent); walled-off areas such as\n  -- Mount Hyjal get their own region and are joined only by the explicit `extra` passes\n  local function region(n) return n.region or n.continent end\n  local has = {}\n  local function link(i, j)\n    local key = i < j and (i .. \":\" .. j) or (j .. \":\" .. i)\n    if has[key] then return end\n    has[key] = true\n    local d = dist(self.nodes[i], self.nodes[j]) * World.WALK_DETOUR\n    self:edge(i, j, \"walk\", d) -- cost in yards; the router divides by ground speed\n    self:edge(j, i, \"walk\", d)\n  end\n  for _, i in ipairs(ground) do\n    local cands = {}\n    for _, j in ipairs(ground) do\n      if j ~= i and region(self.nodes[j]) == region(self.nodes[i]) then\n        cands[#cands + 1] = { j = j, d = dist(self.nodes[i], self.nodes[j]) }\n      end\n    end\n    table.sort(cands, function(a, b) return a.d < b.d end)\n    for r = 1, math.min(k, #cands) do link(i, cands[r].j) end\n  end\n  for _, pair in ipairs(extra or {}) do link(self:index(pair[1]), self:index(pair[2])) end\nend\n\n-- Profile: what this character can use.\n--   faction      \"Alliance\" | \"Horde\"\n--   class        \"MAGE\", ... (upper-case, as UnitClass returns it)\n--   speed        ground speed in yards/s (7 on foot, 11.2 with a 60% mount, 14 with 100%)\n--   hearth       place id the hearthstone is bound to, or nil\n--   items        set of item ids the character carries (engineering devices), or nil\n--   knows        function(spellId) -> bool (in game: IsSpellKnown), or nil = trust the class\n--   flySpeed     flight speed multiplier (Forever's Frequent Flier perk: 1.2)\n--   unconfirmed  true = also use routes only reported from the beta\nfunction World:allowed(gated, profile)\n  if gated.faction and gated.faction ~= profile.faction then return false end\n  if gated.class and gated.class ~= profile.class then return false end\n  if gated.item and not (profile.items and profile.items[gated.item]) then return false end\n  if gated.spell and profile.knows and not profile.knows(gated.spell) then return false end\n  if gated.unconfirmed and not profile.unconfirmed then return false end\n  return true\nend\n\nfunction World:edgeCost(e, profile)\n  if e.mode == \"walk\" then return e.cost / (profile.speed or 7) end\n  if e.mode == \"fly\" then return e.cost / (profile.flySpeed or 1) end\n  return e.cost\nend\n\nns.World = World\n"},{"name":"core/router.lua","src":"-- Fastest route between two places: Dijkstra over (node, set of one-use teleports spent).\n--\n-- Some teleports have cooldowns longer than most plans, so each is treated as usable once:\n-- the hearthstone, a shaman's Astral Recall, engineering devices. With K of them the state\n-- is (node, spent-mask), 2^K states per node. Carrying the mask makes the search exact: a\n-- route spends a teleport only where it pays, and the tour planner can read \"fastest i -> j\n-- that spends exactly the set C\" straight from one search per origin.\nlocal _, ns = ...\nlocal Heap = ns.Heap\n\nlocal Router = {}\n\nlocal INF = math.huge\n\n-- The one-use teleports this character has, in a fixed order (bit k-1 = item k).\nfunction Router.limited(world, profile)\n  local list = {}\n  if profile.hearth then\n    list[#list + 1] = { mode = \"hearth\", name = \"Hearthstone\", to = world:index(profile.hearth),\n                        cost = world.CAST_TIME }\n  end\n  for _, t in ipairs(world.teleports) do\n    if t.limited and world:allowed(t, profile) then\n      local to = t.to\n      if t.toBind then to = profile.hearth and world:index(profile.hearth) end\n      if to then\n        list[#list + 1] = { mode = t.mode, name = t.name, to = to, cost = t.cost }\n      end\n    end\n  end\n  return list\nend\n\n-- ctx: what the state numbers mean for this character.\nfunction Router.context(world, profile)\n  local L = Router.limited(world, profile)\n  local S = 1\n  for _ = 1, #L do S = S * 2 end\n  return { L = L, S = S }\nend\n\nlocal function sid(ctx, node, used) return node * ctx.S + used end\nlocal function decode(ctx, s) return math.floor(s / ctx.S), s % ctx.S end\nRouter.sid, Router.decode = sid, decode\n\nlocal function hasBit(mask, k) return math.floor(mask / 2 ^ (k - 1)) % 2 == 1 end\nRouter.hasBit = hasBit\n\n-- Single-source search. allowLimited=false forbids every one-use teleport.\n-- Returns dist[state], prev[state] = {state, edge}, ctx.\nfunction Router.search(world, profile, src, allowLimited, ctx)\n  ctx = ctx or Router.context(world, profile)\n  local dist, prev = {}, {}\n  local heap = Heap.new()\n  local s = sid(ctx, src, 0)\n  dist[s] = 0\n  heap:push(0, s)\n\n  local tps = {}\n  for _, t in ipairs(world.teleports) do\n    if not t.limited and world:allowed(t, profile) then tps[#tps + 1] = t end\n  end\n  local L = (allowLimited ~= false) and ctx.L or {}\n\n  while not heap:empty() do\n    local d, u = heap:pop()\n    if d <= (dist[u] or INF) then\n      local node, used = decode(ctx, u)\n      local function relax(to, nused, cost, e)\n        local v = sid(ctx, to, nused)\n        local nd = d + cost\n        if nd < (dist[v] or INF) then\n          dist[v] = nd\n          prev[v] = { state = u, edge = e }\n          heap:push(nd, v)\n        end\n      end\n      for _, e in ipairs(world.adj[node]) do\n        if world:allowed(e, profile) then\n          relax(e.to, used, world:edgeCost(e, profile), e)\n        end\n      end\n      if world.nodes[node].kind == \"ground\" then -- no casting while on a flight\n        for _, t in ipairs(tps) do relax(t.to, used, t.cost, t) end\n        for k, t in ipairs(L) do\n          if not hasBit(used, k) then relax(t.to, used + 2 ^ (k - 1), t.cost, t) end\n        end\n      end\n    end\n  end\n  return dist, prev, ctx\nend\n\n-- Rebuild the legs from the search result, with each leg's time taken from the distance\n-- labels. Consecutive walks merge into one walk; board + fly hops + land become one flight\n-- (from the flight master's ground node to the landing ground node).\nfunction Router.legs(world, dist, prev, dstState, ctx)\n  local steps = {}\n  local v = dstState\n  while prev[v] do\n    local p = prev[v]\n    steps[#steps + 1] = { from = decode(ctx, p.state), to = decode(ctx, v),\n                          edge = p.edge, seconds = dist[v] - dist[p.state] }\n    v = p.state\n  end\n  local legs = {}\n  for i = #steps, 1, -1 do\n    local st = steps[i]\n    local mode = st.edge.mode\n    local last = legs[#legs]\n    if (mode == \"fly\" or mode == \"land\") and last and last.mode == \"fly\" then\n      last.to = st.to\n      last.seconds = last.seconds + st.seconds\n      last.path[#last.path + 1] = st.to\n      if mode == \"fly\" then last.hops = last.hops + 1 end\n    elseif mode == \"walk\" and last and last.mode == \"walk\" then\n      last.to = st.to\n      last.seconds = last.seconds + st.seconds\n      last.path[#last.path + 1] = st.to\n    else\n      -- path: every node the leg passes through, for drawing it on a map\n      legs[#legs + 1] = { mode = (mode == \"board\") and \"fly\" or mode, from = st.from, to = st.to,\n                          seconds = st.seconds, name = st.edge.name, hops = 0,\n                          path = { st.from, st.to } }\n    end\n  end\n  return legs\nend\n\n-- Best arrival state at node dst over every spent-mask: returns (seconds, state).\nfunction Router.best(dist, ctx, dst)\n  local best, state = INF, nil\n  for used = 0, ctx.S - 1 do\n    local s = sid(ctx, dst, used)\n    local d = dist[s]\n    if d and d < best then best, state = d, s end\n  end\n  return best, state\nend\n\n-- Convenience: fastest route from place id a to place id b.\n-- Returns total seconds and a list of legs {mode, from, to, seconds}.\nfunction Router.route(world, profile, a, b, allowLimited)\n  local src, dst = world:index(a), world:index(b)\n  local dist, prev, ctx = Router.search(world, profile, src, allowLimited)\n  local best, state = Router.best(dist, ctx, dst)\n  if not state then return nil end\n  return best, Router.legs(world, dist, prev, state, ctx)\nend\n\nns.Router = Router\n"},{"name":"core/tour.lua","src":"-- Quest tour: the order to visit every quest stop (accept -> objectives -> turn in) that\n-- minimises total travel time, using the multimodal router for every leg.\n--\n--   1. One Router.search from the start and from every stop, with every one-use teleport\n--      available, gives D[i][j][C] = fastest i -> j spending exactly the teleport set C\n--      (the search state is (node, spent set), so this is read off directly).\n--   2. Ordering:\n--        exact     Held-Karp DP over (visited stops, last stop, teleports spent), adding stop\n--                  j only once its prerequisites are visited; each leg may spend any set C\n--                  of teleports not spent yet. O(2^n * n^2 * 3^K) for K one-use teleports.\n--        heuristic for larger logs: precedence-safe nearest-neighbour start, then Or-opt\n--                  (move a block of 1-3 stops elsewhere) until no move helps. A fixed order's\n--                  best use of the teleports is found exactly by a DP over legs.\n--\n-- Stops: { node = world index, quest = quest id, kind = \"accept\"|\"objective\"|\"turnin\",\n--          work = seconds spent at the stop, after = {stop indices that must come first} }\nlocal _, ns = ...\nlocal Router = ns.Router\n\nlocal bit = bit or bit32 -- WoW and LuaJIT provide `bit`\nlocal band, bor, lshift = bit.band, bit.bor, bit.lshift\n\nlocal Tour = {}\nlocal INF = math.huge\n\n-- Exact search is used while 2^n * n^2 * 3^K stays under this (13 stops with one teleport).\nTour.EXACT_BUDGET = 2 ^ 13 * 13 * 13 * 3\n\n-- Turn quest definitions into stops. quest = {id, name, giver, objectives = {place ids},\n-- turnin, accepted = bool, work = seconds per objective}\nfunction Tour.stops(world, quests)\n  local stops = {}\n  for _, q in ipairs(quests) do\n    local acceptIdx\n    if not q.accepted then\n      stops[#stops + 1] = { node = world:index(q.giver), quest = q.id, name = q.name,\n                            kind = \"accept\", work = 0, after = {} }\n      acceptIdx = #stops\n    end\n    local objIdx = {}\n    for _, o in ipairs(q.objectives or {}) do\n      if not (q.done and q.done[o]) then\n        stops[#stops + 1] = { node = world:index(o), quest = q.id, name = q.name,\n                              kind = \"objective\", work = q.work or 0,\n                              after = acceptIdx and { acceptIdx } or {} }\n        objIdx[#objIdx + 1] = #stops\n      end\n    end\n    if q.turnin then\n      local after = {}\n      if acceptIdx then after[#after + 1] = acceptIdx end\n      for _, i in ipairs(objIdx) do after[#after + 1] = i end\n      stops[#stops + 1] = { node = world:index(q.turnin), quest = q.id, name = q.name,\n                            kind = \"turnin\", work = 0, after = after }\n    end\n  end\n  return stops\nend\n\n-- Travel-time tables. Index 0 is the start node, 1..n the stops. D[i][j][C + 1].\nfunction Tour.matrices(world, profile, startNode, stops)\n  local ctx = Router.context(world, profile)\n  local pts = { [0] = startNode }\n  for i, s in ipairs(stops) do pts[i] = s.node end\n  local D, cache = {}, {}\n  for i = 0, #stops do\n    local src = pts[i]\n    local res = cache[src]\n    if not res then\n      local dist, prev = Router.search(world, profile, src, true, ctx)\n      res = { dist = dist, prev = prev }\n      cache[src] = res\n    end\n    D[i] = {}\n    for j = 1, #stops do\n      local row = {}\n      for C = 0, ctx.S - 1 do\n        row[C + 1] = res.dist[Router.sid(ctx, pts[j], C)] or INF\n      end\n      D[i][j] = row\n    end\n  end\n  return { D = D, S = ctx.S, ctx = ctx, pts = pts, cache = cache }\nend\n\n-- Cost of a fixed order with the best use of the one-use teleports.\n-- Returns cost and, per leg, the teleport set it spends.\nfunction Tour.orderCost(M, order, stops)\n  local S = M.S\n  local best = { [0] = 0 }\n  local parents = {}\n  local prev = 0\n  for k, j in ipairs(order) do\n    local nb, par = {}, {}\n    local row = M.D[prev][j]\n    local w = stops[j].work\n    for U, c in pairs(best) do\n      for C = 0, S - 1 do\n        if band(C, U) == 0 then\n          local d = row[C + 1]\n          if d < INF then\n            local nu = bor(U, C)\n            local v = c + d + w\n            if v < (nb[nu] or INF) then nb[nu] = v; par[nu] = { U, C } end\n          end\n        end\n      end\n    end\n    best = nb\n    parents[k] = par\n    prev = j\n  end\n  local cost, U = INF, nil\n  for u, c in pairs(best) do if c < cost then cost, U = c, u end end\n  if not U then return INF, {} end\n  local spend = {}\n  for k = #order, 1, -1 do\n    local p = parents[k][U]\n    spend[k] = p[2]\n    U = p[1]\n  end\n  return cost, spend\nend\n\nlocal function feasible(order, stops)\n  local pos = {}\n  for k, j in ipairs(order) do pos[j] = k end\n  for k, j in ipairs(order) do\n    for _, p in ipairs(stops[j].after) do\n      if (pos[p] or INF) > k then return false end\n    end\n  end\n  return true\nend\nTour.feasible = feasible\n\n-- Exact Held-Karp. `yield` (optional) is called every few thousand states so the game can\n-- run it in a coroutine without freezing a frame.\nfunction Tour.exact(M, stops, yield)\n  local n, S = #stops, M.S\n  local need = {}\n  for j = 1, n do\n    local m = 0\n    for _, p in ipairs(stops[j].after) do m = bor(m, lshift(1, p - 1)) end\n    need[j] = m\n  end\n  local W = n + 1\n  local function key(mask, last, U) return (mask * W + last) * S + U end\n  local dp, par = {}, {}\n  for j = 1, n do\n    if need[j] == 0 then\n      for C = 0, S - 1 do\n        local d = M.D[0][j][C + 1]\n        if d < INF then\n          local k = key(lshift(1, j - 1), j, C)\n          local v = d + stops[j].work\n          if v < (dp[k] or INF) then dp[k] = v; par[k] = -1 end\n        end\n      end\n    end\n  end\n  local full = lshift(1, n) - 1\n  local steps = 0\n  for mask = 1, full do\n    for last = 1, n do\n      if band(mask, lshift(1, last - 1)) ~= 0 then\n        for U = 0, S - 1 do\n          local k0 = key(mask, last, U)\n          local cur = dp[k0]\n          if cur then\n            for j = 1, n do\n              local bj = lshift(1, j - 1)\n              if band(mask, bj) == 0 and band(mask, need[j]) == need[j] then\n                local row, w = M.D[last][j], stops[j].work\n                local nm = bor(mask, bj)\n                for C = 0, S - 1 do\n                  if band(C, U) == 0 then\n                    local d = row[C + 1]\n                    if d < INF then\n                      local nk = key(nm, j, bor(U, C))\n                      local v = cur + d + w\n                      if v < (dp[nk] or INF) then dp[nk] = v; par[nk] = k0 end\n                    end\n                  end\n                end\n              end\n            end\n          end\n        end\n        steps = steps + 1\n        if yield and steps % 2000 == 0 then yield() end\n      end\n    end\n  end\n  local best, bk = INF, nil\n  for last = 1, n do\n    for U = 0, S - 1 do\n      local c = dp[key(full, last, U)]\n      if c and c < best then best, bk = c, key(full, last, U) end\n    end\n  end\n  if not bk then return nil end\n  local order = {}\n  local k = bk\n  while k and k >= 0 do\n    local last = math.floor(k / S) % W\n    table.insert(order, 1, last)\n    k = par[k]\n  end\n  return order, best\nend\n\n-- Heuristic: nearest feasible stop first, then Or-opt with blocks of 1..3.\nfunction Tour.heuristic(M, stops, yield)\n  local n = #stops\n  local done, order = {}, {}\n  local prev = 0\n  for _ = 1, n do\n    local best, bj = INF, nil\n    for j = 1, n do\n      if not done[j] then\n        local ok = true\n        for _, p in ipairs(stops[j].after) do if not done[p] then ok = false; break end end\n        if ok and M.D[prev][j][1] < best then best, bj = M.D[prev][j][1], j end\n      end\n    end\n    if not bj then -- unreachable stop: append the rest in any feasible order\n      for j = 1, n do if not done[j] then bj = j; break end end\n    end\n    done[bj] = true\n    order[#order + 1] = bj\n    prev = bj\n  end\n  local cost = Tour.orderCost(M, order, stops)\n  local improved = true\n  while improved do\n    improved = false\n    for len = 1, 3 do\n      for i = 1, n - len + 1 do\n        local block = {}\n        for k = i, i + len - 1 do block[#block + 1] = order[k] end\n        local rest = {}\n        for k = 1, n do if k < i or k >= i + len then rest[#rest + 1] = order[k] end end\n        for pos = 0, #rest do\n          if pos ~= i - 1 then\n            local cand = {}\n            for k = 1, pos do cand[#cand + 1] = rest[k] end\n            for _, b in ipairs(block) do cand[#cand + 1] = b end\n            for k = pos + 1, #rest do cand[#cand + 1] = rest[k] end\n            if feasible(cand, stops) then\n              local c = Tour.orderCost(M, cand, stops)\n              if c < cost - 1e-9 then\n                order, cost, improved = cand, c, true\n                break\n              end\n            end\n          end\n        end\n        if improved then break end\n      end\n      if improved then break end\n    end\n    if yield then yield() end\n  end\n  return order, cost\nend\n\nfunction Tour.exactAffordable(n, S)\n  local K = 0\n  while 2 ^ K < S do K = K + 1 end\n  return 2 ^ n * n * n * 3 ^ K <= Tour.EXACT_BUDGET\nend\n\n-- Full plan. opts = {method = \"auto\"|\"exact\"|\"heuristic\", yield = fn}\n-- Returns {order, seconds, method, stops, legs = {{stop, seconds, travel}}, matrices}\nfunction Tour.plan(world, profile, startId, quests, opts)\n  opts = opts or {}\n  local stops = Tour.stops(world, quests)\n  local startNode = world:index(startId)\n  local M = Tour.matrices(world, profile, startNode, stops)\n  local method = opts.method or \"auto\"\n  if method == \"auto\" then method = Tour.exactAffordable(#stops, M.S) and \"exact\" or \"heuristic\" end\n  local order\n  if #stops == 0 then\n    order = {}\n  elseif method == \"exact\" then\n    order = Tour.exact(M, stops, opts.yield)\n  else\n    order = Tour.heuristic(M, stops, opts.yield)\n  end\n  local seconds, spend = Tour.orderCost(M, order, stops)\n  local legs = {}\n  local prev = 0\n  for k, j in ipairs(order) do\n    local res = M.cache[M.pts[prev]]\n    local state = Router.sid(M.ctx, stops[j].node, spend[k])\n    local travel = Router.legs(world, res.dist, res.prev, state, M.ctx)\n    legs[#legs + 1] = { stop = stops[j], index = j, seconds = res.dist[state], travel = travel }\n    prev = j\n  end\n  return { order = order, seconds = seconds, method = method, stops = stops,\n           legs = legs, matrices = M }\nend\n\nns.Tour = Tour\n"},{"name":"core/cpp.lua","src":"-- Exact open directed Chinese Postman: the cheapest walk that starts at a given node, may end\n-- anywhere, and uses every edge at least once. Used as the optimum Atlas is measured against.\n--\n-- A walk from s to t uses every edge iff the multigraph (edges + repeated copies) has\n--   out(v) - in(v) = [v = s] - [v = t]  for every v.\n-- Repeating a shortest u -> w path adds one out at u and one in at w, so choosing the copies\n-- is a min-cost flow: supply(v) = in(v) - out(v) + [v = s], demand where negative, plus one\n-- unit that may end anywhere (a zero-cost arc from every node to a sink T, capacity 1).\n-- Solved with successive shortest paths (Dijkstra with potentials), then Hierholzer.\n--\n-- Works on the FSM graph (fsm.lua): g.edges[label] = {source, dest, weight}.\nlocal _, ns = ...\nlocal Heap = ns.Heap\n\nlocal CPP = {}\nlocal INF = math.huge\n\n-- Minimal min-cost-flow network.\nlocal function newNet() return { head = {}, arcs = {} } end\nlocal function addArc(net, u, v, cap, cost, tag)\n  local a = { to = v, cap = cap, cost = cost, tag = tag }\n  local r = { to = u, cap = 0, cost = -cost }\n  a.rev, r.rev = r, a\n  net.head[u] = net.head[u] or {}\n  net.head[v] = net.head[v] or {}\n  table.insert(net.head[u], a)\n  table.insert(net.head[v], r)\n  net.arcs[#net.arcs + 1] = a\n  return a\nend\n\nlocal function minCostFlow(net, S, T, need)\n  local pot = {}\n  for v in pairs(net.head) do pot[v] = 0 end\n  local flow, cost = 0, 0\n  while flow < need do\n    local dist, prevArc = {}, {}\n    local heap = Heap.new()\n    dist[S] = 0\n    heap:push(0, S)\n    while not heap:empty() do\n      local d, u = heap:pop()\n      if d <= (dist[u] or INF) then\n        for _, a in ipairs(net.head[u]) do\n          if a.cap > 0 then\n            local nd = d + a.cost + pot[u] - pot[a.to]\n            if nd < (dist[a.to] or INF) - 1e-9 then\n              dist[a.to] = nd\n              prevArc[a.to] = a\n              heap:push(nd, a.to)\n            end\n          end\n        end\n      end\n    end\n    if not dist[T] then return nil end -- infeasible\n    for v in pairs(net.head) do\n      if dist[v] then pot[v] = pot[v] + dist[v] end\n    end\n    local push = need - flow\n    local v = T\n    while v ~= S do\n      local a = prevArc[v]\n      if a.cap < push then push = a.cap end\n      v = a.rev.to\n    end\n    v = T\n    while v ~= S do\n      local a = prevArc[v]\n      a.cap = a.cap - push\n      a.rev.cap = a.rev.cap + push\n      cost = cost + push * a.cost\n      v = a.rev.to\n    end\n    flow = flow + push\n  end\n  return cost\nend\n\n-- Generic core: given arcs {from, to, cost} and how many times each must be used\n-- (base[i] >= 0), add the cheapest extra copies so that an open walk from `start` uses\n-- every arc its count of times, then return that walk.\n-- Returns {arcs = list of arc indices in walk order, weight} or nil if infeasible.\n-- The caller must make sure the arcs with base > 0 and `start` are connected.\nfunction CPP.balanceAndWalk(nodes, arcs, base, start)\n  local outDeg, inDeg = {}, {}\n  for _, v in ipairs(nodes) do outDeg[v], inDeg[v] = 0, 0 end\n  local need0, weight = 0, 0\n  for i, a in ipairs(arcs) do\n    local k = base[i] or 0\n    if k > 0 then\n      outDeg[a.from] = outDeg[a.from] + k\n      inDeg[a.to] = inDeg[a.to] + k\n      weight = weight + k * a.cost\n      need0 = need0 + k\n    end\n  end\n  local net = newNet()\n  local S, T, SINK = {}, {}, {} -- unique keys that cannot clash with node ids\n  local need = 0\n  for _, v in ipairs(nodes) do\n    local supply = inDeg[v] - outDeg[v] + ((v == start) and 1 or 0)\n    if supply > 0 then addArc(net, S, v, supply, 0); need = need + supply end\n    if supply < 0 then addArc(net, v, SINK, -supply, 0) end\n    addArc(net, v, T, 1, 0) -- the walk may end here\n  end\n  addArc(net, T, SINK, 1, 0)\n  local copies = {}\n  for i, a in ipairs(arcs) do copies[i] = addArc(net, a.from, a.to, INF, a.cost) end\n  local extra = minCostFlow(net, S, SINK, need)\n  if not extra then return nil end\n\n  local mult, total = {}, 0\n  for _, v in ipairs(nodes) do mult[v] = {} end\n  for i, a in ipairs(arcs) do\n    local times = (base[i] or 0) + copies[i].rev.cap -- flow on the arc = extra traversals\n    for _ = 1, times do table.insert(mult[a.from], i) end\n    total = total + times\n  end\n  -- Hierholzer (iterative)\n  local rwalk, st = {}, { { node = start } }\n  while #st > 0 do\n    local top = st[#st]\n    local list = mult[top.node]\n    if #list > 0 then\n      local i = table.remove(list)\n      st[#st + 1] = { node = arcs[i].to, arc = i }\n    else\n      table.remove(st)\n      if top.arc then rwalk[#rwalk + 1] = top.arc end\n    end\n  end\n  if #rwalk ~= total then return nil end -- not connected\n  local walk = {}\n  for i = #rwalk, 1, -1 do walk[#walk + 1] = rwalk[i] end\n  return { arcs = walk, weight = weight + extra }\nend\n\n-- Open directed Chinese Postman on an FSM-shaped graph: every edge at least once.\n-- Returns {path = list of edge labels, weight, length} or nil if some edge is unreachable.\nfunction CPP.solve(g, startNode)\n  startNode = startNode or 0\n  local nodes = {}\n  for v in pairs(g.out) do nodes[#nodes + 1] = v end\n  table.sort(nodes)\n  local arcs, base = {}, {}\n  for l = 0, g.m - 1 do\n    local e = g.edges[l]\n    arcs[l + 1] = { from = e.source, to = e.dest, cost = e.weight }\n    base[l + 1] = 1\n  end\n  local r = CPP.balanceAndWalk(nodes, arcs, base, startNode)\n  if not r then return nil end\n  local path = {}\n  for i, a in ipairs(r.arcs) do path[i] = a - 1 end\n  return { path = path, weight = r.weight, length = #path }\nend\n\nns.CPP = CPP\n"},{"name":"core/coverage.lua","src":"-- Weighted Atlas: the professor's edge-coverage idea extended to travel costs and teleports.\n--\n-- Same round structure as Atlas (DFS post-order over the reachable edges, longest-path DP,\n-- append the best chain), with three changes:\n--   1. Score.  Atlas scores a chain by the number of new edges (all edges cost 1).\n--      Here a chain scores  newRequired * BIG - weight,  i.e. most new required edges first,\n--      cheapest among equals. BIG > total weight keeps the order lexicographic.\n--   2. Required edges.  Only edges marked required need covering (rural postman); the rest\n--      (walking, boats) are there to connect them. With every edge required this is the\n--      plain Atlas problem with weights.\n--   3. Bridging.  Atlas stops when no chain adds a new edge, which leaves edges uncovered\n--      when they cannot be reached in the DFS order. Here the walk instead jumps to the\n--      nearest uncovered required edge by the cheapest route, which may use teleports\n--      (`jumps`: usable from any node, like a mage teleport). It stops only when every\n--      required edge is covered or the rest are unreachable.\n-- Also: the walk's last edge is kept (Atlas.java drops it, see atlas.lua).\n--\n-- Graph: an FSM-shaped graph (fsm.lua) with edge.weight; edge.required defaults to true.\nlocal _, ns = ...\nlocal Heap = ns.Heap\n\nlocal Coverage = {}\nlocal NEG, INF = -math.huge, math.huge\n\nlocal function required(e) return e.required ~= false end\n\nlocal function dfsOrder(g, startLabel, mark)\n  local stack, frames = {}, { { e = startLabel, i = 0 } }\n  mark[startLabel] = true\n  while #frames > 0 do\n    local f = frames[#frames]\n    local nbrs = g:outEdges(g.edges[f.e].dest)\n    local advanced = false\n    while f.i < #nbrs do\n      f.i = f.i + 1\n      local n = nbrs[f.i]\n      if not mark[n] then\n        mark[n] = true\n        frames[#frames + 1] = { e = n, i = 0 }\n        advanced = true\n        break\n      end\n    end\n    if not advanced then\n      stack[#stack + 1] = f.e\n      frames[#frames] = nil\n    end\n  end\n  return stack\nend\n\n-- Strongly connected components of the node graph (edges + jumps), and which components\n-- can reach which. Used to stop the walk from entering a part of the graph it cannot leave\n-- while required edges elsewhere are still uncovered.\nlocal function components(g, jumps)\n  local nodes = {}\n  for v in pairs(g.out) do nodes[#nodes + 1] = v end\n  table.sort(nodes)\n  local function succ(u)\n    local r = {}\n    for _, l in ipairs(g.out[u] or {}) do r[#r + 1] = g.edges[l].dest end\n    for _, t in ipairs(jumps or {}) do\n      if not (t.allowedFrom and not t.allowedFrom(u)) then r[#r + 1] = t.to end\n    end\n    return r\n  end\n  -- iterative Tarjan\n  local index, low, onStack, comp = {}, {}, {}, {}\n  local stack, counter, ncomp = {}, 0, 0\n  for _, root in ipairs(nodes) do\n    if not index[root] then\n      local frames = { { v = root, s = succ(root), i = 0 } }\n      counter = counter + 1\n      index[root], low[root] = counter, counter\n      stack[#stack + 1] = root; onStack[root] = true\n      while #frames > 0 do\n        local f = frames[#frames]\n        if f.i < #f.s then\n          f.i = f.i + 1\n          local w = f.s[f.i]\n          if not index[w] then\n            counter = counter + 1\n            index[w], low[w] = counter, counter\n            stack[#stack + 1] = w; onStack[w] = true\n            frames[#frames + 1] = { v = w, s = succ(w), i = 0 }\n          elseif onStack[w] and index[w] < low[f.v] then\n            low[f.v] = index[w]\n          end\n        else\n          frames[#frames] = nil\n          local p = frames[#frames]\n          if p and low[f.v] < low[p.v] then low[p.v] = low[f.v] end\n          if low[f.v] == index[f.v] then\n            ncomp = ncomp + 1\n            repeat\n              local w = table.remove(stack)\n              onStack[w] = nil\n              comp[w] = ncomp\n            until w == f.v\n          end\n        end\n      end\n    end\n  end\n  -- reach[c][d]: component d reachable from c (Tarjan numbers sinks first)\n  local cedges = {}\n  for c = 1, ncomp do cedges[c] = {} end\n  for _, u in ipairs(nodes) do\n    for _, v in ipairs(succ(u)) do\n      if comp[u] ~= comp[v] then cedges[comp[u]][comp[v]] = true end\n    end\n  end\n  local reach = {}\n  for c = 1, ncomp do\n    local r = { [c] = true }\n    for d in pairs(cedges[c]) do for x in pairs(reach[d]) do r[x] = true end end\n    reach[c] = r\n  end\n  return comp, reach\nend\n\n-- May the walk move from node u to node v (by edge `l`, or by a jump when l is nil)?\n-- Within a component always. Into another component only if every uncovered required\n-- edge, other than `l` itself, is still reachable from there.\nlocal function crossingOK(g, u, v, l, comp, reach, pending)\n  local from, to = comp[u], comp[v]\n  if from == to then return true end\n  local selfCovers = l and required(g.edges[l]) and not pending.covered[l]\n  for c, count in pairs(pending) do\n    if not reach[to][c] then\n      local own = (selfCovers and c == from) and 1 or 0\n      if count - own > 0 then return false end\n    end\n  end\n  return true\nend\n\n-- Uncovered required edges per component of their source.\nlocal function pendingBySource(g, covered, comp)\n  local p = {}\n  for l = 0, g.m - 1 do\n    local e = g.edges[l]\n    if required(e) and not covered[l] then\n      local c = comp[e.source]\n      p[c] = (p[c] or 0) + 1\n    end\n  end\n  return setmetatable(p, { __index = { covered = covered } })\nend\n\n-- Cheapest way from `node` to the source of any uncovered required edge.\n-- Returns list of steps ({edge = label} or {jump = j}) and the target edge label.\nlocal function bridge(g, node, covered, jumps, comp, reach)\n  local pending = pendingBySource(g, covered, comp)\n  local targets = {}\n  for l = 0, g.m - 1 do\n    local e = g.edges[l]\n    if required(e) and not covered[l] and not targets[e.source]\n       and crossingOK(g, e.source, e.dest, l, comp, reach, pending) then\n      targets[e.source] = l\n    end\n  end\n  local dist, prev = { [node] = 0 }, {}\n  local heap = Heap.new()\n  heap:push(0, node)\n  while not heap:empty() do\n    local d, u = heap:pop()\n    if d <= dist[u] then\n      if targets[u] then\n        local steps, v = {}, u\n        while prev[v] do table.insert(steps, 1, prev[v].step); v = prev[v].from end\n        return steps, targets[u], d\n      end\n      local function relax(v, c, step)\n        if d + c < (dist[v] or INF) then\n          dist[v] = d + c\n          prev[v] = { from = u, step = step }\n          heap:push(d + c, v)\n        end\n      end\n      for _, l in ipairs(g.out[u] or {}) do\n        local v = g.edges[l].dest\n        if crossingOK(g, u, v, l, comp, reach, pending) then relax(v, g.edges[l].weight, { edge = l }) end\n      end\n      for j, t in ipairs(jumps or {}) do\n        if not (t.allowedFrom and not t.allowedFrom(u))\n           and crossingOK(g, u, t.to, nil, comp, reach, pending) then\n          relax(t.to, t.cost, { jump = j })\n        end\n      end\n    end\n  end\n  return nil\nend\n\n-- Returns {steps = list of {edge=label}|{jump=index}, weight, covered, required, length}\nfunction Coverage.run(g, startNode, opts)\n  opts = opts or {}\n  local jumps = opts.jumps or {}\n  local totalW, nReq = 0, 0\n  for l = 0, g.m - 1 do\n    totalW = totalW + g.edges[l].weight\n    if required(g.edges[l]) then nReq = nReq + 1 end\n  end\n  local BIG = totalW + 1\n  local covered, nCovered = {}, 0\n  local steps, weight = {}, 0\n  local function take(l)\n    steps[#steps + 1] = { edge = l }\n    weight = weight + g.edges[l].weight\n    if required(g.edges[l]) and not covered[l] then\n      covered[l] = true\n      nCovered = nCovered + 1\n    end\n  end\n\n  local comp, reach = components(g, jumps)\n  local node = startNode\n  while nCovered < nReq do\n    -- bridge to the nearest uncovered required edge (zero steps if one leaves `node`)\n    local path, target = bridge(g, node, covered, jumps, comp, reach)\n    if not path then break end\n    for _, s in ipairs(path) do\n      if s.edge then take(s.edge)\n      else\n        steps[#steps + 1] = { jump = s.jump }\n        weight = weight + jumps[s.jump].cost\n      end\n    end\n    take(target)\n    local last = target\n    -- Atlas rounds from the last edge\n    while true do\n      local pending = pendingBySource(g, covered, comp)\n      local mark = {}\n      local stack = dfsOrder(g, last, mark)\n      local cost, comeFrom, visited = { [last] = 0 }, {}, {}\n      local bestCost, best = 0, nil\n      for s = #stack, 1, -1 do\n        local e = stack[s]\n        visited[e] = true\n        local ce = cost[e]\n        if ce then\n          for _, n in ipairs(g:outEdges(g.edges[e].dest)) do\n            local en = g.edges[n]\n            if not visited[n] and crossingOK(g, en.source, en.dest, n, comp, reach, pending) then\n              local gain = (required(en) and not covered[n]) and BIG or 0\n              local nc = ce + gain - en.weight\n              if nc > (cost[n] or NEG) then\n                cost[n] = nc\n                comeFrom[n] = e\n                if nc > bestCost then bestCost, best = nc, n end\n              end\n            end\n          end\n        end\n      end\n      if not best then break end -- no chain adds a required edge\n      local chain = {}\n      local cur = best\n      while cur ~= last do chain[#chain + 1] = cur; cur = comeFrom[cur] end\n      for i = #chain, 1, -1 do take(chain[i]) end\n      last = best\n    end\n    node = g.edges[last].dest\n  end\n  return { steps = steps, weight = weight, covered = nCovered, required = nReq,\n           length = #steps }\nend\n\n-- Rural Postman construction (the classic heuristic, Frederickson 1979 style):\n--   1. the required edges fall into connected pieces (plus the start node);\n--   2. join the pieces with a minimum spanning tree whose edge cost is the round trip\n--      between two pieces, adding both shortest paths;\n--   3. balance in/out degrees with min-cost flow over all edges and jumps (cpp.lua);\n--   4. Euler walk from the start.\n-- Exact when the required edges are already connected (then it is the CPP with optional\n-- edges); otherwise step 2 can over-pay.\n-- Returns the same shape as Coverage.run, or nil if some required edge is unreachable.\nfunction Coverage.rpp(g, startNode, opts)\n  opts = opts or {}\n  local jumps = opts.jumps or {}\n  local nodes = {}\n  for v in pairs(g.out) do nodes[#nodes + 1] = v end\n  table.sort(nodes)\n  local arcs, base = {}, {}\n  local outArcs = {}\n  for _, v in ipairs(nodes) do outArcs[v] = {} end\n  local function addArc(from, to, cost, ref)\n    arcs[#arcs + 1] = { from = from, to = to, cost = cost, ref = ref }\n    table.insert(outArcs[from], #arcs)\n    return #arcs\n  end\n  for l = 0, g.m - 1 do\n    local e = g.edges[l]\n    local i = addArc(e.source, e.dest, e.weight, { edge = l })\n    base[i] = required(e) and 1 or 0\n  end\n  for j, t in ipairs(jumps) do\n    for _, v in ipairs(nodes) do\n      if v ~= t.to and not (t.allowedFrom and not t.allowedFrom(v)) then\n        addArc(v, t.to, t.cost, { jump = j })\n      end\n    end\n  end\n\n  -- 1. pieces: union-find over endpoints of required edges, plus the start\n  local parent = {}\n  local function find(x)\n    while parent[x] ~= x do parent[x] = parent[parent[x]]; x = parent[x] end\n    return x\n  end\n  local function touch(x) if not parent[x] then parent[x] = x end end\n  touch(startNode)\n  for l = 0, g.m - 1 do\n    local e = g.edges[l]\n    if required(e) then\n      touch(e.source); touch(e.dest)\n      local a, b = find(e.source), find(e.dest)\n      if a ~= b then parent[a] = b end\n    end\n  end\n  local roots, members = {}, {}\n  for x in pairs(parent) do\n    local r = find(x)\n    if not members[r] then members[r] = {}; roots[#roots + 1] = r end\n    table.insert(members[r], x)\n  end\n  table.sort(roots)\n  local pieces = {}\n  for k, r in ipairs(roots) do pieces[k] = members[r] end\n\n  -- shortest paths from a whole piece (multi-source Dijkstra over arcs)\n  local function fromPiece(k)\n    local dist, prev = {}, {}\n    local heap = Heap.new()\n    for _, v in ipairs(pieces[k]) do dist[v] = 0; heap:push(0, v) end\n    while not heap:empty() do\n      local d, u = heap:pop()\n      if d <= dist[u] then\n        for _, i in ipairs(outArcs[u]) do\n          local a = arcs[i]\n          if d + a.cost < (dist[a.to] or INF) then\n            dist[a.to] = d + a.cost\n            prev[a.to] = i\n            heap:push(d + a.cost, a.to)\n          end\n        end\n      end\n    end\n    return { dist = dist, prev = prev }\n  end\n  local np = #pieces\n  local sp = {}\n  for k = 1, np do sp[k] = fromPiece(k) end\n  -- cheapest arrival node of piece b from piece a\n  local function link(a, b)\n    local best, at = INF, nil\n    for _, v in ipairs(pieces[b]) do\n      local d = sp[a].dist[v] or INF\n      if d < best then best, at = d, v end\n    end\n    return best, at\n  end\n  local function addPath(a, at)\n    local prev = sp[a].prev\n    local v = at\n    while prev[v] do\n      local i = prev[v]\n      base[i] = (base[i] or 0) + 1\n      v = arcs[i].from\n    end\n  end\n\n  -- 2. Prim's MST on round-trip cost\n  local inTree = { [1] = true }\n  for _ = 2, np do\n    local best, ba, bb = INF, nil, nil\n    for a = 1, np do\n      if inTree[a] then\n        for b = 1, np do\n          if not inTree[b] then\n            local c = link(a, b) + link(b, a)\n            if c < best then best, ba, bb = c, a, b end\n          end\n        end\n      end\n    end\n    if not ba then return nil end -- a piece cannot be reached\n    local _, at1 = link(ba, bb)\n    local _, at2 = link(bb, ba)\n    addPath(ba, at1)\n    addPath(bb, at2)\n    inTree[bb] = true\n  end\n\n  -- 3 + 4\n  local r = ns.CPP.balanceAndWalk(nodes, arcs, base, startNode)\n  if not r then return nil end\n  local steps, covered, seen, nReq = {}, 0, {}, 0\n  for l = 0, g.m - 1 do if required(g.edges[l]) then nReq = nReq + 1 end end\n  for _, i in ipairs(r.arcs) do\n    local ref = arcs[i].ref\n    steps[#steps + 1] = ref\n    if ref.edge and required(g.edges[ref.edge]) and not seen[ref.edge] then\n      seen[ref.edge] = true\n      covered = covered + 1\n    end\n  end\n  return { steps = steps, weight = r.weight, covered = covered, required = nReq, length = #steps }\nend\n\n-- Lower bound for the rural postman: every required edge once.\nfunction Coverage.lowerBound(g)\n  local w = 0\n  for l = 0, g.m - 1 do if required(g.edges[l]) then w = w + g.edges[l].weight end end\n  return w\nend\n\n-- Build an FSM-shaped graph from the world for one character. Required: every flight link\n-- the character can fly, both directions (\"ride the whole flight network\").\n-- Jumps: the character's mage teleports (hearthstone is left out: one use per hour).\nfunction Coverage.fromWorld(world, profile)\n  local g = ns.FSM.new()\n  local reqCount = 0\n  for i = 1, #world.nodes do\n    for _, e in ipairs(world.adj[i]) do\n      if world:allowed(e, profile) then\n        local l = g:addEdge(e.from, e.to, 0, 0, world:edgeCost(e, profile))\n        g.edges[l].mode = e.mode\n        g.edges[l].required = (e.mode == \"fly\")\n        if e.mode == \"fly\" then reqCount = reqCount + 1 end\n      end\n    end\n  end\n  local jumps = {}\n  for _, t in ipairs(world.teleports) do\n    if world:allowed(t, profile) then\n      jumps[#jumps + 1] = { to = t.to, cost = t.cost, name = t.name,\n                            allowedFrom = function(u) return world.nodes[u].kind == \"ground\" end }\n    end\n  end\n  return g, jumps, reqCount\nend\n\nns.Coverage = Coverage\n"},{"name":"data/world_data.lua","src":"-- Hand-built map of Classic-era Eastern Kingdoms and Kalimdor.\n--\n-- Target: World of Warcraft: Forever (Classic-based, launched 2026-11-04). The Classic network\n-- is kept; Forever's additions are marked \"Forever\" below with the guides that report them:\n--   WF = wowforever.be/guides/flight-paths (reads live client 1.60.1.70862)\n--   CW = classicwowforever.com/boats-and-zeppelins (live client tables, 2026-11-08)\n--   CC = conquestcapped.com WoW Forever travel routes (2026-10-20)\n--   TL = wowforevertierlist.com/travel (beta data as of 2026-10-08)\n-- Where they disagree, live-client sources (WF, CW) win. Items only the beta reported are\n-- marked unconfirmed = true and are used only when the profile sets unconfirmed = true.\n--\n-- APPROXIMATE DATA. Coordinates are in yards on a per-continent plane, placed by hand from the\n-- zone layout; they are not read from the game files. Flight links, boats, zeppelins and the\n-- tram follow the Classic network; ride and wait times are estimates. The algorithm does not\n-- depend on these numbers, only the demo results do. Replace this file to plan on other data.\nlocal _, ns = ...\n\nlocal D = {}\n\nD.places = {\n  -- Eastern Kingdoms -----------------------------------------------------------------------\n  { id = \"undercity\",      name = \"Undercity\",              zone = \"Tirisfal Glades\",      continent = \"EK\", x = 1800, y = 8800 },\n  { id = \"sepulcher\",      name = \"The Sepulcher\",          zone = \"Silverpine Forest\",    continent = \"EK\", x = 1300, y = 7900 },\n  { id = \"tarrenmill\",     name = \"Tarren Mill\",            zone = \"Hillsbrad Foothills\",  continent = \"EK\", x = 2600, y = 7400 },\n  { id = \"southshore\",     name = \"Southshore\",             zone = \"Hillsbrad Foothills\",  continent = \"EK\", x = 2100, y = 7000 },\n  { id = \"alterac\",        name = \"Alterac Foothills\",      zone = \"Alterac Mountains\",    continent = \"EK\", x = 2400, y = 7900 },\n  { id = \"chillwind\",      name = \"Chillwind Camp\",         zone = \"Western Plaguelands\",  continent = \"EK\", x = 2500, y = 8300 },\n  { id = \"lightshope\",     name = \"Light's Hope Chapel\",    zone = \"Eastern Plaguelands\",  continent = \"EK\", x = 4500, y = 8500 },\n  { id = \"aeriepeak\",      name = \"Aerie Peak\",             zone = \"The Hinterlands\",      continent = \"EK\", x = 3300, y = 7900 },\n  { id = \"revantusk\",      name = \"Revantusk Village\",      zone = \"The Hinterlands\",      continent = \"EK\", x = 4200, y = 7600 },\n  { id = \"hammerfall\",     name = \"Hammerfall\",             zone = \"Arathi Highlands\",     continent = \"EK\", x = 3600, y = 6800 },\n  { id = \"refugepointe\",   name = \"Refuge Pointe\",          zone = \"Arathi Highlands\",     continent = \"EK\", x = 3200, y = 6500 },\n  { id = \"stromgarde\",     name = \"Stromgarde Keep\",        zone = \"Arathi Highlands\",     continent = \"EK\", x = 2700, y = 6300 },\n  { id = \"thandol\",        name = \"Thandol Span\",           zone = \"Wetlands\",             continent = \"EK\", x = 2600, y = 6000 },\n  { id = \"menethil\",       name = \"Menethil Harbor\",        zone = \"Wetlands\",             continent = \"EK\", x = 1900, y = 5600 },\n  { id = \"raptorgrounds\",  name = \"Raptor Grounds\",         zone = \"Wetlands\",             continent = \"EK\", x = 2400, y = 5700 },\n  { id = \"dunalgaz\",       name = \"Dun Algaz\",              zone = \"Loch Modan\",           continent = \"EK\", x = 2700, y = 5300 },\n  { id = \"thelsamar\",      name = \"Thelsamar\",              zone = \"Loch Modan\",           continent = \"EK\", x = 3300, y = 4900 },\n  { id = \"ironforge\",      name = \"Ironforge\",              zone = \"Dun Morogh\",           continent = \"EK\", x = 2500, y = 4900 },\n  { id = \"uldaman\",        name = \"Uldaman Entrance\",       zone = \"Badlands\",             continent = \"EK\", x = 3500, y = 4500 },\n  { id = \"kargath\",        name = \"Kargath\",                zone = \"Badlands\",             continent = \"EK\", x = 3300, y = 4300 },\n  { id = \"thoriumpoint\",   name = \"Thorium Point\",          zone = \"Searing Gorge\",        continent = \"EK\", x = 2400, y = 4200 },\n  { id = \"stormwind\",      name = \"Stormwind City\",         zone = \"Elwynn Forest\",        continent = \"EK\", x = 1200, y = 3000 },\n  { id = \"lakeshire\",      name = \"Lakeshire\",              zone = \"Redridge Mountains\",   continent = \"EK\", x = 2600, y = 2800 },\n  { id = \"sentinelhill\",   name = \"Sentinel Hill\",          zone = \"Westfall\",             continent = \"EK\", x = 900,  y = 2100 },\n  { id = \"darkshire\",      name = \"Darkshire\",              zone = \"Duskwood\",             continent = \"EK\", x = 1900, y = 2000 },\n  { id = \"ravenhill\",      name = \"Raven Hill\",             zone = \"Duskwood\",             continent = \"EK\", x = 1300, y = 1900 },\n  { id = \"stonard\",        name = \"Stonard\",                zone = \"Swamp of Sorrows\",     continent = \"EK\", x = 3200, y = 2300 },\n  { id = \"nethergarde\",    name = \"Nethergarde Keep\",       zone = \"Blasted Lands\",        continent = \"EK\", x = 3600, y = 1900 },\n  { id = \"gromgol\",        name = \"Grom'gol Base Camp\",     zone = \"Stranglethorn Vale\",   continent = \"EK\", x = 1400, y = 1000 },\n  { id = \"nesingwary\",     name = \"Nesingwary's Expedition\",zone = \"Stranglethorn Vale\",   continent = \"EK\", x = 1600, y = 1300 },\n  { id = \"bootybay\",       name = \"Booty Bay\",              zone = \"Stranglethorn Vale\",   continent = \"EK\", x = 1300, y = 200  },\n  -- Teldrassil (an island: own \"continent\" so nobody walks across the sea) ------------------\n  { id = \"darnassus\",      name = \"Darnassus\",              zone = \"Teldrassil\",           continent = \"TEL\", x = 1600, y = 9700 },\n  { id = \"ruttheran\",      name = \"Rut'theran Village\",     zone = \"Teldrassil\",           continent = \"TEL\", x = 1900, y = 9400 },\n  -- Kalimdor -------------------------------------------------------------------------------\n  { id = \"auberdine\",      name = \"Auberdine\",              zone = \"Darkshore\",            continent = \"KAL\", x = 2300, y = 8500 },\n  { id = \"mathystra\",      name = \"Ruins of Mathystra\",     zone = \"Darkshore\",            continent = \"KAL\", x = 2700, y = 9100 },\n  { id = \"everlook\",       name = \"Everlook\",               zone = \"Winterspring\",         continent = \"KAL\", x = 4300, y = 9200 },\n  { id = \"astranaar\",      name = \"Astranaar\",              zone = \"Ashenvale\",            continent = \"KAL\", x = 2900, y = 7300 },\n  { id = \"splintertree\",   name = \"Splintertree Post\",      zone = \"Ashenvale\",            continent = \"KAL\", x = 3700, y = 7100 },\n  { id = \"orgrimmar\",      name = \"Orgrimmar\",              zone = \"Durotar\",              continent = \"KAL\", x = 4400, y = 6200 },\n  { id = \"razorhill\",      name = \"Razor Hill\",             zone = \"Durotar\",              continent = \"KAL\", x = 4600, y = 5600 },\n  { id = \"crossroads\",     name = \"The Crossroads\",         zone = \"The Barrens\",          continent = \"KAL\", x = 3700, y = 5000 },\n  { id = \"ratchet\",        name = \"Ratchet\",                zone = \"The Barrens\",          continent = \"KAL\", x = 4400, y = 5000 },\n  { id = \"thunderbluff\",   name = \"Thunder Bluff\",          zone = \"Mulgore\",              continent = \"KAL\", x = 2500, y = 4800 },\n  { id = \"taurajo\",        name = \"Camp Taurajo\",           zone = \"The Barrens\",          continent = \"KAL\", x = 3200, y = 3900 },\n  { id = \"theramore\",      name = \"Theramore Isle\",         zone = \"Dustwallow Marsh\",     continent = \"KAL\", x = 4500, y = 3500 },\n  { id = \"brackenwall\",    name = \"Brackenwall Village\",    zone = \"Dustwallow Marsh\",     continent = \"KAL\", x = 3900, y = 3500 },\n  { id = \"freewind\",       name = \"Freewind Post\",          zone = \"Thousand Needles\",     continent = \"KAL\", x = 3900, y = 2600 },\n  { id = \"mojache\",        name = \"Camp Mojache\",           zone = \"Feralas\",              continent = \"KAL\", x = 2600, y = 3000 },\n  { id = \"feathermoon\",    name = \"Feathermoon Stronghold\", zone = \"Feralas\",              continent = \"KAL\", x = 1200, y = 3000, region = \"SARDOR\" },\n  { id = \"forgottencoast\", name = \"The Forgotten Coast\",    zone = \"Feralas\",              continent = \"KAL\", x = 1500, y = 3000 },\n  { id = \"gadgetzan\",      name = \"Gadgetzan\",              zone = \"Tanaris\",              continent = \"KAL\", x = 4600, y = 1500 },\n  { id = \"cenarionhold\",   name = \"Cenarion Hold\",          zone = \"Silithus\",             continent = \"KAL\", x = 2700, y = 1400 },\n  -- Classic places the Forever additions connect to ----------------------------------------\n  { id = \"morgansvigil\",   name = \"Morgan's Vigil\",         zone = \"Burning Steppes\",      continent = \"EK\",  x = 2900, y = 3600 },\n  { id = \"flamecrest\",     name = \"Flame Crest\",            zone = \"Burning Steppes\",      continent = \"EK\",  x = 2300, y = 3700 },\n  { id = \"nijelspoint\",    name = \"Nijel's Point\",          zone = \"Desolace\",             continent = \"KAL\", x = 2000, y = 6100 },\n  { id = \"shadowprey\",     name = \"Shadowprey Village\",     zone = \"Desolace\",             continent = \"KAL\", x = 1300, y = 5200 },\n  { id = \"nighthaven\",     name = \"Nighthaven\",             zone = \"Moonglade\",            continent = \"KAL\", x = 3300, y = 9100, region = \"MOONGLADE\" },\n  -- Forever: The Riverglades (EK; borders Redridge, Burning Steppes, Swamp of Sorrows, Badlands: TL)\n  { id = \"farholde\",       name = \"Farholde Keep\",          zone = \"The Riverglades\",      continent = \"EK\",  x = 3600, y = 3100 },\n  { id = \"rogmar\",         name = \"Rog'mar\",                zone = \"The Riverglades\",      continent = \"EK\",  x = 3900, y = 3500 },\n  { id = \"powderfuse\",     name = \"Powderfuse Port\",        zone = \"The Riverglades\",      continent = \"EK\",  x = 4300, y = 3000 },\n  { id = \"steamwheedle\",   name = \"Steamwheedle Port\",      zone = \"Tanaris\",              continent = \"KAL\", x = 5000, y = 1700 },\n  -- Forever: Mount Hyjal (reached from Winterspring through Darkwhisper Gorge: TL)\n  { id = \"taintedfoothills\", name = \"Tainted Foothills\",    zone = \"Mount Hyjal\",          continent = \"KAL\", x = 3900, y = 8300, region = \"HYJAL\" },\n  { id = \"summit\",         name = \"Summit of Eternity\",     zone = \"Mount Hyjal\",          continent = \"KAL\", x = 3600, y = 8000, region = \"HYJAL\" },\n  -- Forever: Shen'dralas (on foot through the Valley of Bones south of Desolace, no flight master: TL)\n  { id = \"shendralas\",     name = \"Shen'dralas\",            zone = \"Shen'dralas\",          continent = \"KAL\", x = 1500, y = 4300, region = \"SHENDRALAS\" },\n  -- Forever: Dalaran in Alterac Mountains (WIKI; docks on the north side: CW)\n  { id = \"dalaran\",        name = \"Dalaran\",                zone = \"Alterac Mountains\",    continent = \"EK\",  x = 2200, y = 8100 },\n  -- Forever: Skywatcher Plateau, NW Mulgore (CW, TL)\n  { id = \"skywatcher\",     name = \"Skywatcher Plateau\",     zone = \"Mulgore\",              continent = \"KAL\", x = 2200, y = 5300 },\n  -- Forever: Zephras Isle, Skyborne start; shown in its own box above the map (CC)\n  { id = \"valanaar\",       name = \"Valanaar\",               zone = \"Zephras Isle\",         continent = \"ZEP\", x = 500,  y = 500 },\n}\n\n-- Flight masters: place id -> faction (nil = both factions)\nD.flightMasters = {\n  stormwind = \"Alliance\", ironforge = \"Alliance\", sentinelhill = \"Alliance\", lakeshire = \"Alliance\",\n  darkshire = \"Alliance\", nethergarde = \"Alliance\", thelsamar = \"Alliance\", menethil = \"Alliance\",\n  southshore = \"Alliance\", refugepointe = \"Alliance\", aeriepeak = \"Alliance\", chillwind = \"Alliance\",\n  ruttheran = \"Alliance\", auberdine = \"Alliance\", astranaar = \"Alliance\", theramore = \"Alliance\",\n  feathermoon = \"Alliance\",\n  undercity = \"Horde\", sepulcher = \"Horde\", tarrenmill = \"Horde\", hammerfall = \"Horde\",\n  revantusk = \"Horde\", kargath = \"Horde\", stonard = \"Horde\", gromgol = \"Horde\",\n  orgrimmar = \"Horde\", splintertree = \"Horde\", crossroads = \"Horde\", thunderbluff = \"Horde\",\n  taurajo = \"Horde\", brackenwall = \"Horde\", freewind = \"Horde\", mojache = \"Horde\",\n  bootybay = false, thoriumpoint = false, lightshope = false, ratchet = false,\n  gadgetzan = false, cenarionhold = false, everlook = false,\n  morgansvigil = \"Alliance\", flamecrest = \"Horde\", nijelspoint = \"Alliance\", shadowprey = \"Horde\",\n  -- Forever (WF, CC, TL, CW agree on these four)\n  farholde = \"Alliance\", rogmar = \"Horde\", taintedfoothills = false, summit = false,\n}\n\n-- Flight masters with extra conditions.\nD.flightMasterExtra = {\n  nighthaven = { class = \"DRUID\" }, -- druids only (WF)\n  -- Powderfuse Port: no flight master in the live client (WF, CW); beta had one (TL, CC)\n  powderfuse = { unconfirmed = true },\n}\n\n-- Flight links (undirected). Each link is usable by a faction if both ends are its own or neutral.\nD.flightLinks = {\n  -- Alliance, Eastern Kingdoms\n  { \"stormwind\", \"ironforge\" }, { \"stormwind\", \"sentinelhill\" }, { \"stormwind\", \"lakeshire\" },\n  { \"stormwind\", \"darkshire\" }, { \"lakeshire\", \"darkshire\" }, { \"darkshire\", \"nethergarde\" },\n  { \"lakeshire\", \"nethergarde\" }, { \"ironforge\", \"thelsamar\" }, { \"ironforge\", \"menethil\" },\n  { \"menethil\", \"refugepointe\" }, { \"menethil\", \"southshore\" }, { \"refugepointe\", \"southshore\" },\n  { \"southshore\", \"aeriepeak\" }, { \"aeriepeak\", \"chillwind\" }, { \"southshore\", \"chillwind\" },\n  -- Horde, Eastern Kingdoms\n  { \"undercity\", \"sepulcher\" }, { \"undercity\", \"tarrenmill\" }, { \"sepulcher\", \"tarrenmill\" },\n  { \"tarrenmill\", \"hammerfall\" }, { \"hammerfall\", \"revantusk\" }, { \"tarrenmill\", \"revantusk\" },\n  { \"hammerfall\", \"kargath\" }, { \"kargath\", \"stonard\" }, { \"stonard\", \"gromgol\" },\n  -- Alliance, Kalimdor\n  { \"ruttheran\", \"auberdine\" }, { \"auberdine\", \"astranaar\" }, { \"astranaar\", \"theramore\" },\n  { \"auberdine\", \"feathermoon\" }, { \"astranaar\", \"feathermoon\" }, { \"feathermoon\", \"theramore\" },\n  -- Horde, Kalimdor\n  { \"orgrimmar\", \"crossroads\" }, { \"orgrimmar\", \"splintertree\" }, { \"crossroads\", \"thunderbluff\" },\n  { \"crossroads\", \"taurajo\" }, { \"crossroads\", \"brackenwall\" }, { \"thunderbluff\", \"taurajo\" },\n  { \"taurajo\", \"freewind\" }, { \"freewind\", \"mojache\" }, { \"thunderbluff\", \"mojache\" },\n  { \"splintertree\", \"crossroads\" },\n  -- Neutral flight masters, linked into both networks\n  { \"thoriumpoint\", \"ironforge\" }, { \"thoriumpoint\", \"kargath\" },\n  { \"lightshope\", \"chillwind\" }, { \"lightshope\", \"undercity\" }, { \"lightshope\", \"revantusk\" },\n  { \"lightshope\", \"aeriepeak\" },\n  { \"bootybay\", \"stormwind\" }, { \"bootybay\", \"darkshire\" }, { \"bootybay\", \"gromgol\" }, { \"bootybay\", \"stonard\" },\n  { \"ratchet\", \"orgrimmar\" }, { \"ratchet\", \"crossroads\" }, { \"ratchet\", \"theramore\" }, { \"ratchet\", \"astranaar\" },\n  { \"gadgetzan\", \"freewind\" }, { \"gadgetzan\", \"theramore\" }, { \"gadgetzan\", \"brackenwall\" }, { \"gadgetzan\", \"feathermoon\" },\n  { \"gadgetzan\", \"cenarionhold\" }, { \"cenarionhold\", \"mojache\" }, { \"cenarionhold\", \"feathermoon\" },\n  { \"everlook\", \"auberdine\" }, { \"everlook\", \"astranaar\" }, { \"everlook\", \"orgrimmar\" }, { \"everlook\", \"splintertree\" },\n  -- Classic links of the places added for Forever (approximate, like the rest of this list)\n  { \"morgansvigil\", \"lakeshire\" }, { \"morgansvigil\", \"ironforge\" },\n  { \"flamecrest\", \"kargath\" }, { \"flamecrest\", \"stonard\" },\n  { \"nijelspoint\", \"astranaar\" }, { \"nijelspoint\", \"feathermoon\" },\n  { \"shadowprey\", \"thunderbluff\" }, { \"shadowprey\", \"mojache\" },\n  { \"nighthaven\", \"ruttheran\" }, { \"nighthaven\", \"thunderbluff\" }, -- druids only (WF)\n  -- Forever (WF, CC, CW): Farholde Keep -> Lakeshire, Thelsamar, Morgan's Vigil\n  { \"farholde\", \"lakeshire\" }, { \"farholde\", \"thelsamar\" }, { \"farholde\", \"morgansvigil\" },\n  -- Forever (WF, CC, TL): Rog'mar -> Stonard, Hammerfall, Kargath, Flame Crest\n  { \"rogmar\", \"stonard\" }, { \"rogmar\", \"hammerfall\" }, { \"rogmar\", \"kargath\" }, { \"rogmar\", \"flamecrest\" },\n  -- Forever (WF, CC, TL, CW): Tainted Foothills -> Everlook, Summit of Eternity\n  { \"taintedfoothills\", \"everlook\" }, { \"taintedfoothills\", \"summit\" },\n}\n\n-- Links only the beta reported.\nD.unconfirmedFlightLinks = {\n  { \"farholde\", \"powderfuse\" }, -- TL lists it; WF and CW: gone in the live client\n}\n\n-- Ships, zeppelins, tram. cycle = time between departures; expected wait = cycle / 2.\nD.transports = {\n  { from = \"menethil\",  to = \"theramore\", mode = \"boat\",     ride = 150, cycle = 360, faction = \"Alliance\" },\n  -- Forever: Menethil -> Southshore -> Auberdine -> Menethil is a one-way loop (CC, CW). WF\n  -- instead lists a direct Menethil-Auberdine boat; CW reads the live client, so the loop wins.\n  -- Staying aboard Menethil -> Auberdine pays one wait.\n  { from = \"menethil\",   to = \"southshore\", mode = \"boat\",   ride = 120, cycle = 480, faction = \"Alliance\", oneWay = true },\n  { from = \"southshore\", to = \"auberdine\",  mode = \"boat\",   ride = 180, cycle = 480, faction = \"Alliance\", oneWay = true },\n  { from = \"auberdine\",  to = \"menethil\",   mode = \"boat\",   ride = 150, cycle = 480, faction = \"Alliance\", oneWay = true },\n  { from = \"menethil\",   to = \"auberdine\",  mode = \"boat\",   ride = 300, cycle = 480, faction = \"Alliance\", oneWay = true },\n  -- Forever: Stormwind Harbor -> Auberdine (all five sources)\n  { from = \"stormwind\",  to = \"auberdine\",  mode = \"boat\",   ride = 180, cycle = 360, faction = \"Alliance\" },\n  -- Forever: Steamwheedle Port (Tanaris) <-> Powderfuse Port (Riverglades), neutral (WF, CC, CW, TL)\n  { from = \"steamwheedle\", to = \"powderfuse\", mode = \"boat\", ride = 180, cycle = 360 },\n  -- Forever: Skyborne skyships from Valanaar, departures about every 5 minutes (CC)\n  { from = \"valanaar\",   to = \"dalaran\",    mode = \"skyship\", ride = 120, cycle = 300 },                    -- both factions (WF, CC)\n  { from = \"valanaar\",   to = \"skywatcher\", mode = \"skyship\", ride = 120, cycle = 300, faction = \"Horde\" }, -- Horde (WF, TL)\n  -- Classic: Feathermoon ferry to the Forgotten Coast (WF, CC, CW)\n  { from = \"feathermoon\", to = \"forgottencoast\", mode = \"boat\", ride = 30, cycle = 60 },\n  -- Beta only: portal in Dalaran's Violet Citadel to the Stormwind Mage Tower (CC, TL)\n  { from = \"dalaran\",    to = \"stormwind\",  mode = \"portal\", ride = 5, cycle = 0, faction = \"Alliance\", oneWay = true, unconfirmed = true },\n  { from = \"auberdine\", to = \"ruttheran\", mode = \"boat\",     ride = 90,  cycle = 240, faction = \"Alliance\" },\n  { from = \"bootybay\",  to = \"ratchet\",   mode = \"boat\",     ride = 150, cycle = 360 },\n  { from = \"orgrimmar\", to = \"undercity\", mode = \"zeppelin\", ride = 120, cycle = 300, faction = \"Horde\" },\n  { from = \"orgrimmar\", to = \"gromgol\",   mode = \"zeppelin\", ride = 120, cycle = 300, faction = \"Horde\" },\n  { from = \"undercity\", to = \"gromgol\",   mode = \"zeppelin\", ride = 120, cycle = 300, faction = \"Horde\" },\n  { from = \"stormwind\", to = \"ironforge\", mode = \"tram\",     ride = 90,  cycle = 120, faction = \"Alliance\" },\n  { from = \"ruttheran\", to = \"darnassus\", mode = \"portal\",   ride = 5,   cycle = 0,   faction = \"Alliance\" },\n}\n\n-- Teleports, cast from anywhere on the ground. spell / item ids are checked in game\n-- (IsSpellKnown, GetItemCount); outside the game class and profile.items decide.\n-- limited = once per plan (cooldown longer than a plan); toBind = to the hearthstone's bind point.\nD.teleports = {\n  { name = \"Teleport: Stormwind\",     to = \"stormwind\",    mode = \"teleport\", class = \"MAGE\", faction = \"Alliance\", spell = 3561 },\n  { name = \"Teleport: Ironforge\",     to = \"ironforge\",    mode = \"teleport\", class = \"MAGE\", faction = \"Alliance\", spell = 3562 },\n  { name = \"Teleport: Darnassus\",     to = \"darnassus\",    mode = \"teleport\", class = \"MAGE\", faction = \"Alliance\", spell = 3565 },\n  { name = \"Teleport: Orgrimmar\",     to = \"orgrimmar\",    mode = \"teleport\", class = \"MAGE\", faction = \"Horde\",    spell = 3567 },\n  { name = \"Teleport: Undercity\",     to = \"undercity\",    mode = \"teleport\", class = \"MAGE\", faction = \"Horde\",    spell = 3563 },\n  { name = \"Teleport: Thunder Bluff\", to = \"thunderbluff\", mode = \"teleport\", class = \"MAGE\", faction = \"Horde\",    spell = 3566 },\n  { name = \"Teleport: Moonglade\",     to = \"nighthaven\",   mode = \"teleport\", class = \"DRUID\", spell = 18960 },\n  { name = \"Astral Recall\",           toBind = true,       mode = \"teleport\", class = \"SHAMAN\", spell = 556, limited = true },\n  { name = \"Dimensional Ripper - Everlook\",    to = \"everlook\",  mode = \"device\", item = 18984, limited = true },\n  { name = \"Ultrasafe Transporter: Gadgetzan\", to = \"gadgetzan\", mode = \"device\", item = 18986, limited = true },\n  -- Forever, beta only: Teleport: Dalaran at level 50 for both factions (CC; TL found none)\n  { name = \"Teleport: Dalaran\",       to = \"dalaran\",      mode = \"teleport\", class = \"MAGE\", unconfirmed = true },\n}\n\n-- Walking links the k-nearest rule misses (mountain passes, bridges).\nD.extraWalks = {\n  { \"menethil\", \"dunalgaz\" }, { \"thandol\", \"refugepointe\" }, { \"dunalgaz\", \"ironforge\" },\n  { \"taintedfoothills\", \"everlook\" },  -- Darkwhisper Gorge (TL)\n  { \"nighthaven\", \"everlook\" },        -- Timbermaw Hold\n  { \"shendralas\", \"shadowprey\" },      -- Valley of Bones (TL)\n}\n\nfunction D.build(World)\n  local w = World.new()\n  for _, p in ipairs(D.places) do\n    local copy = {}\n    for k, v in pairs(p) do copy[k] = v end\n    w:addPlace(copy)\n  end\n  local fm = {}\n  for id in pairs(D.flightMasters) do fm[#fm + 1] = id end\n  table.sort(fm) -- deterministic node order\n  for _, id in ipairs(fm) do w:addFlightMaster(id, D.flightMasters[id] or nil) end\n  local extra = {}\n  for id in pairs(D.flightMasterExtra) do extra[#extra + 1] = id end\n  table.sort(extra)\n  for _, id in ipairs(extra) do\n    local x = D.flightMasterExtra[id]\n    w:addFlightMaster(id, x.faction, x.class, x.unconfirmed)\n  end\n  for _, l in ipairs(D.flightLinks) do w:addFlightLink(l[1], l[2]) end\n  for _, l in ipairs(D.unconfirmedFlightLinks) do w:addFlightLink(l[1], l[2], { unconfirmed = true }) end\n  for _, t in ipairs(D.transports) do w:addTransport(t) end\n  for _, t in ipairs(D.teleports) do w:addTeleport(t) end\n  w:connectWalking(4, D.extraWalks)\n  return w\nend\n\nns.WorldData = D\n"},{"name":"data/quest_data.lua","src":"-- Sample quest logs for the demo and tests. Modelled on the kind of quests Classic gives\n-- around levels 25-35 in these zones; names are descriptive, not exact in-game titles.\n-- In the game the addon builds this list from the player's own input (see ui/addon.lua).\n--   giver      place id where the quest is picked up (omit / accepted=true if already taken)\n--   objectives place ids to visit\n--   turnin     place id to hand it in\n--   work       seconds spent at each objective (killing, collecting)\nlocal _, ns = ...\n\nlocal Q = {}\n\nQ.alliance = {\n  { id = \"raptors\",    name = \"Raptor hides\",            giver = \"menethil\",     objectives = { \"raptorgrounds\" }, turnin = \"menethil\",     work = 240 },\n  { id = \"letter\",     name = \"Letter to Theramore\",     giver = \"stormwind\",    accepted = true,                 turnin = \"theramore\" },\n  { id = \"syndicate\",  name = \"Syndicate in Alterac\",    giver = \"southshore\",   objectives = { \"alterac\" },       turnin = \"southshore\",   work = 300 },\n  { id = \"ogres\",      name = \"Ogres of Stromgarde\",     giver = \"refugepointe\", objectives = { \"stromgarde\" },    turnin = \"refugepointe\", work = 300 },\n  { id = \"mathystra\",  name = \"Relics of Mathystra\",     giver = \"auberdine\",    objectives = { \"mathystra\" },     turnin = \"auberdine\",    work = 240 },\n  { id = \"nightwatch\", name = \"Night Watch at Raven Hill\", giver = \"darkshire\",  objectives = { \"ravenhill\" },     turnin = \"darkshire\",    work = 300 },\n  { id = \"astranaar\",  name = \"Supplies for Astranaar\",  giver = \"darnassus\",    accepted = true,                 turnin = \"astranaar\" },\n  { id = \"uldaman\",    name = \"Survey of Uldaman\",       giver = \"ironforge\",    objectives = { \"uldaman\" },       turnin = \"ironforge\",    work = 180 },\n  { id = \"tigers\",     name = \"Stranglethorn tigers\",    giver = \"nesingwary\",   objectives = { \"nesingwary\" },    turnin = \"nesingwary\",   work = 360 },\n}\n\nQ.horde = {\n  { id = \"hammerfall\", name = \"Hammerfall orders\",       giver = \"undercity\",    accepted = true,                 turnin = \"hammerfall\" },\n  { id = \"stromgarde\", name = \"Raid on Stromgarde\",      giver = \"hammerfall\",   objectives = { \"stromgarde\" },    turnin = \"hammerfall\",   work = 300 },\n  { id = \"alterac\",    name = \"Alterac reconnaissance\",  giver = \"tarrenmill\",   objectives = { \"alterac\" },       turnin = \"tarrenmill\",   work = 300 },\n  { id = \"razorhill\",  name = \"Durotar supply run\",      giver = \"orgrimmar\",    objectives = { \"razorhill\" },     turnin = \"crossroads\",   work = 120 },\n  { id = \"tigers\",     name = \"Stranglethorn tigers\",    giver = \"nesingwary\",   objectives = { \"nesingwary\" },    turnin = \"nesingwary\",   work = 360 },\n  { id = \"feralas\",    name = \"Feralas scouting\",        giver = \"mojache\",      objectives = { \"feathermoon\" },   turnin = \"mojache\",      work = 240 },\n  { id = \"bluff\",      name = \"Message to Thunder Bluff\",giver = \"freewind\",     accepted = true,                 turnin = \"thunderbluff\" },\n}\n\nns.QuestData = Q\n"},{"name":"web/bridge.lua","src":"-- Bridge between the showcase page and the addon's Lua code. The page runs the same\n-- core/ and data/ files in a browser Lua VM (wasmoon) and calls these functions; requests\n-- are query strings (\"faction=Horde&start=orgrimmar\"), answers are JSON strings.\nlocal _, ns = ...\nlocal B = {}\n\n-- JSON ------------------------------------------------------------------------------------\nlocal function encode(v, out)\n  local t = type(v)\n  if t == \"nil\" then out[#out + 1] = \"null\"\n  elseif t == \"boolean\" then out[#out + 1] = v and \"true\" or \"false\"\n  elseif t == \"number\" then\n    if v ~= v or v == math.huge or v == -math.huge then out[#out + 1] = \"null\"\n    elseif v == math.floor(v) and math.abs(v) < 2 ^ 53 then out[#out + 1] = string.format(\"%d\", v)\n    else out[#out + 1] = string.format(\"%.3f\", v) end\n  elseif t == \"string\" then\n    out[#out + 1] = '\"' .. v:gsub('[%c\"\\\\]', function(c)\n      local map = { ['\"'] = '\\\\\"', [\"\\\\\"] = \"\\\\\\\\\", [\"\\n\"] = \"\\\\n\", [\"\\t\"] = \"\\\\t\" }\n      return map[c] or string.format(\"\\\\u%04x\", c:byte())\n    end) .. '\"'\n  elseif t == \"table\" then\n    if v[1] ~= nil or next(v) == nil and getmetatable(v) == B.ARRAY then\n      out[#out + 1] = \"[\"\n      for i = 1, #v do\n        if i > 1 then out[#out + 1] = \",\" end\n        encode(v[i], out)\n      end\n      out[#out + 1] = \"]\"\n    else\n      out[#out + 1] = \"{\"\n      local keys = {}\n      for k in pairs(v) do keys[#keys + 1] = tostring(k) end\n      table.sort(keys)\n      for i, k in ipairs(keys) do\n        if i > 1 then out[#out + 1] = \",\" end\n        encode(k, out)\n        out[#out + 1] = \":\"\n        local val = v[k]\n        if val == nil then val = v[tonumber(k)] end\n        encode(val, out)\n      end\n      out[#out + 1] = \"}\"\n    end\n  end\nend\nB.ARRAY = {}\nlocal function array(t) return setmetatable(t or {}, B.ARRAY) end\nlocal function json(v) local out = {}; encode(v, out); return table.concat(out) end\nB.json = json\n\nlocal function parse(q)\n  local r = {}\n  for k, v in (q or \"\"):gmatch(\"([^&=]+)=([^&]*)\") do r[k] = v end\n  return r\nend\n\nlocal world\nlocal function getWorld()\n  world = world or ns.WorldData.build(ns.World)\n  return world\nend\n\n-- World -----------------------------------------------------------------------------------\nfunction B.world()\n  local w = getWorld()\n  local D = ns.WorldData\n  local places = array()\n  for _, n in ipairs(w.nodes) do\n    if n.kind == \"ground\" then\n      places[#places + 1] = { id = n.id, name = n.name, zone = n.zone, continent = n.continent,\n                              region = n.region or n.continent, x = n.x, y = n.y }\n    end\n  end\n  local masters = array()\n  for _, n in ipairs(w.nodes) do\n    if n.kind == \"air\" then\n      masters[#masters + 1] = { id = w.nodes[n.ground].id, faction = n.faction, class = n.class }\n    end\n  end\n  local links = array()\n  local seen = {}\n  for i = 1, #w.nodes do\n    for _, e in ipairs(w.adj[i]) do\n      if e.mode == \"fly\" then\n        local a, b = w.nodes[e.from], w.nodes[e.to]\n        local key = math.min(e.from, e.to) .. \":\" .. math.max(e.from, e.to)\n        if not seen[key] then\n          seen[key] = true\n          links[#links + 1] = { a = w.nodes[a.ground].id, b = w.nodes[b.ground].id,\n                                faction = e.faction, class = e.class, unconfirmed = e.unconfirmed }\n        end\n      end\n    end\n  end\n  local transports = array()\n  for _, t in ipairs(D.transports) do\n    transports[#transports + 1] = { from = t.from, to = t.to, mode = t.mode, faction = t.faction,\n                                    oneWay = t.oneWay, unconfirmed = t.unconfirmed }\n  end\n  local quests = {}\n  for side, list in pairs(ns.QuestData) do\n    local qs = array()\n    for _, q in ipairs(list) do\n      local objs = array()\n      for i, o in ipairs(q.objectives or {}) do objs[i] = o end\n      qs[#qs + 1] = { id = q.id, name = q.name, giver = q.giver, accepted = q.accepted,\n                      objectives = objs, turnin = q.turnin }\n    end\n    quests[side] = qs\n  end\n  return json({ places = places, masters = masters, links = links, transports = transports,\n                quests = quests })\nend\n\nlocal function profileFrom(o)\n  return {\n    faction = o.faction or \"Alliance\",\n    class = (o.class ~= nil and o.class ~= \"\") and o.class or nil,\n    speed = tonumber(o.speed) or 11.2,\n    hearth = (o.hearth ~= nil and o.hearth ~= \"\") and o.hearth or nil,\n    items = (o.engineer == \"1\") and { [18984] = true, [18986] = true } or nil,\n    flySpeed = (o.flier == \"1\") and 1.2 or 1,\n    unconfirmed = o.beta == \"1\",\n  }\nend\n\nlocal function legsOut(w, travel)\n  local out = array()\n  for _, t in ipairs(travel) do\n    local path = array()\n    for _, node in ipairs(t.path or { t.from, t.to }) do\n      local n = w.nodes[node]\n      local id = n.kind == \"air\" and w.nodes[n.ground].id or n.id\n      if path[#path] ~= id then path[#path + 1] = id end -- ground and air node share a spot\n    end\n    if #path == 1 then path[2] = path[1] end\n    out[#out + 1] = { mode = t.mode, name = t.name, from = path[1], to = path[#path],\n                      seconds = t.seconds, path = path }\n  end\n  return out\nend\n\n-- Quest plan ------------------------------------------------------------------------------\nfunction B.plan(q)\n  local o = parse(q)\n  local w = getWorld()\n  local prof = profileFrom(o)\n  local pool = (o.faction == \"Horde\") and ns.QuestData.horde or ns.QuestData.alliance\n  local want = {}\n  for id in (o.quests or \"\"):gmatch(\"[^,]+\") do want[id] = true end\n  local quests = {}\n  for _, qd in ipairs(pool) do if want[qd.id] then quests[#quests + 1] = qd end end\n  local t0 = os.clock()\n  local plan = ns.Tour.plan(w, prof, o.start, quests, { method = o.method })\n  local ms = (os.clock() - t0) * 1000\n  local steps = array()\n  for k, leg in ipairs(plan.legs) do\n    local s = leg.stop\n    steps[k] = { kind = s.kind, quest = s.quest, name = s.name, place = w.nodes[s.node].id,\n                 work = s.work, seconds = leg.seconds, travel = legsOut(w, leg.travel) }\n  end\n  -- what the same order would cost with no teleports at all, for comparison\n  return json({ seconds = plan.seconds, method = plan.method, stops = #plan.stops, ms = ms,\n                steps = steps })\nend\n\n-- Single route ----------------------------------------------------------------------------\nfunction B.route(q)\n  local o = parse(q)\n  local w = getWorld()\n  local t, legs = ns.Router.route(w, profileFrom(o), o.from, o.to, true)\n  if not t then return json({ error = \"No route between those places for this character.\" }) end\n  return json({ seconds = t, travel = legsOut(w, legs) })\nend\n\n-- Flight-network coverage: Atlas, weighted Atlas, Rural Postman -----------------------------\nfunction B.cover(q)\n  local o = parse(q)\n  local w = getWorld()\n  local prof = profileFrom(o)\n  local g, jumps, req = ns.Coverage.fromWorld(w, prof)\n  local s = w:index(o.start)\n  local function stepsOut(list)\n    local out = array()\n    for _, st in ipairs(list) do\n      if st.edge then\n        local e = g.edges[st.edge]\n        local a, b = w.nodes[e.source], w.nodes[e.dest]\n        if e.mode ~= \"board\" and e.mode ~= \"land\" then\n          out[#out + 1] = { mode = e.mode, from = a.kind == \"air\" and w.nodes[a.ground].id or a.id,\n                            to = b.kind == \"air\" and w.nodes[b.ground].id or b.id,\n                            seconds = e.weight, required = e.required }\n        end\n      else\n        local j = jumps[st.jump]\n        out[#out + 1] = { mode = \"teleport\", name = j.name, to = w.nodes[j.to].id, seconds = j.cost }\n      end\n    end\n    return out\n  end\n  local result = { required = req, lowerBound = ns.Coverage.lowerBound(g), methods = {} }\n  -- Atlas as written (Java port): starts on the first edge leaving the start\n  do\n    local t0 = os.clock()\n    local first = g.out[s][1]\n    local p = ns.Atlas.longestPath(g, first)\n    local list, seen, covered, weight = {}, {}, 0, 0\n    for _, l in ipairs(p) do\n      list[#list + 1] = { edge = l }\n      weight = weight + g.edges[l].weight\n      if g.edges[l].required and not seen[l] then seen[l] = true; covered = covered + 1 end\n    end\n    result.methods.atlas = { seconds = weight, covered = covered, ms = (os.clock() - t0) * 1000,\n                             steps = stepsOut(list) }\n  end\n  do\n    local t0 = os.clock()\n    local r = ns.Coverage.run(g, s, { jumps = jumps })\n    result.methods.weighted = { seconds = r.weight, covered = r.covered, ms = (os.clock() - t0) * 1000,\n                                steps = stepsOut(r.steps) }\n  end\n  do\n    local t0 = os.clock()\n    local r = ns.Coverage.rpp(g, s, { jumps = jumps })\n    result.methods.postman = { seconds = r.weight, covered = r.covered, ms = (os.clock() - t0) * 1000,\n                               steps = stepsOut(r.steps) }\n  end\n  return json(result)\nend\n\nns.Bridge = B\n"}]</script>
+<script>
+(function () {
+  "use strict";
+  var WASMOON = "https://cdn.jsdelivr.net/npm/wasmoon@1.16.0/dist/index.js";
+  var GLUE = "https://cdn.jsdelivr.net/npm/wasmoon@1.16.0/dist/glue.wasm";
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var TIPS = [
+    "A flight with three hops is one trip to the flight master, not three. The planner counts it that way.",
+    "Your hearthstone is used once per journey, on the leg where it saves the most time.",
+    "The Menethil boat runs a loop. Menethil to Auberdine calls at Southshore first; the way back is direct.",
+    "Mages can teleport from anywhere on the ground, but not while on a gryphon.",
+    "Druids have their own flight master in Moonglade. Nobody else may land there.",
+    "Skyborne travellers leave Valanaar by skyship: to Dalaran for everyone, to Skywatcher Plateau for the Horde.",
+    "Up to thirteen stops, the order is proven best. Past that, a heuristic takes over and is usually right.",
+    "Atlas was written to test state machines. Here it rides gryphons instead."
+  ];
+
+  // ---------------------------------------------------------------- Lua worker
+  var workerSrc = [
+    "var lua;",
+    "var SHIM = 'bit = { band = function(a, b) return math.tointeger(a) & math.tointeger(b) end,' +",
+    "  ' bor = function(a, b) return math.tointeger(a) | math.tointeger(b) end,' +",
+    "  ' lshift = function(a, b) return math.tointeger(a) << math.tointeger(b) end } NS = {}';",
+    "self.onmessage = async function (ev) {",
+    "  var m = ev.data;",
+    "  if (m.type === 'init') {",
+    "    try {",
+    "      importScripts(m.wasmoon);",
+    "      postMessage({ type: 'progress', step: 'engine' });",
+    "      lua = await new wasmoon.LuaFactory(m.glue).createEngine();",
+    "      await lua.doString(SHIM);",
+    "      for (var i = 0; i < m.files.length; i++) {",
+    "        lua.global.set('__src', m.files[i].src);",
+    "        await lua.doString('assert(load(__src, \"=' + m.files[i].name + '\"))(\"AtlasRoute\", NS)');",
+    "        postMessage({ type: 'progress', step: 'file', i: i + 1, n: m.files.length, name: m.files[i].name });",
+    "      }",
+    "      postMessage({ type: 'ready' });",
+    "    } catch (e) { postMessage({ type: 'fail', error: String(e && e.message || e) }); }",
+    "  } else if (m.type === 'call') {",
+    "    try {",
+    "      lua.global.set('__arg', m.arg || '');",
+    "      var r = await lua.doString('return NS.Bridge.' + m.fn + '(__arg)');",
+    "      postMessage({ type: 'result', id: m.id, result: r });",
+    "    } catch (e) { postMessage({ type: 'result', id: m.id, error: String(e && e.message || e) }); }",
+    "  }",
+    "};"
+  ].join("\n");
+
+  var worker, pending = {}, nextId = 1, readyResolve, readyReject;
+  var ready = new Promise(function (res, rej) { readyResolve = res; readyReject = rej; });
+
+  function startWorker() {
+    var files = JSON.parse(document.getElementById("lua-sources").textContent);
+    worker = new Worker(URL.createObjectURL(new Blob([workerSrc], { type: "text/javascript" })));
+    worker.onmessage = function (ev) {
+      var m = ev.data;
+      if (m.type === "progress") {
+        if (m.step === "engine") setLoad(25, "Unrolling the maps…");
+        else setLoad(25 + 70 * m.i / m.n, "Reading " + m.name);
+      } else if (m.type === "ready") { setLoad(100, "Ready."); readyResolve(); }
+      else if (m.type === "fail") { readyReject(new Error(m.error)); }
+      else if (m.type === "result") {
+        var p = pending[m.id]; delete pending[m.id];
+        if (m.error) p.reject(new Error(m.error)); else p.resolve(JSON.parse(m.result));
+      }
+    };
+    worker.onerror = function (e) { readyReject(new Error(e.message || "worker error")); };
+    worker.postMessage({ type: "init", wasmoon: WASMOON, glue: GLUE, files: files });
+  }
+  function call(fn, arg) {
+    return ready.then(function () {
+      return new Promise(function (resolve, reject) {
+        var id = nextId++;
+        pending[id] = { resolve: resolve, reject: reject };
+        worker.postMessage({ type: "call", id: id, fn: fn, arg: arg });
+      });
+    });
+  }
+
+  function setLoad(pct, text) {
+    document.getElementById("lprog").style.width = pct + "%";
+    document.getElementById("lstatus").textContent = text;
+  }
+
+  // ---------------------------------------------------------------- helpers
+  function el(name, attrs, parent) {
+    var n = document.createElementNS(SVGNS, name);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+  function h(tag, attrs, text) {
+    var n = document.createElement(tag);
+    if (attrs) for (var k in attrs) { if (k === "class") n.className = attrs[k]; else n.setAttribute(k, attrs[k]); }
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function fmt(s) {
+    s = Math.round(s);
+    var hh = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+    if (hh) return hh + "h " + (m < 10 ? "0" : "") + m + "m";
+    return m + ":" + (sec < 10 ? "0" : "") + sec;
+  }
+  function mins(s) { return Math.round(s / 60); }
+  var chron = document.getElementById("chronicle");
+  function say(html, quiet) {
+    var d = h("div", quiet ? { "class": "quiet" } : null);
+    d.innerHTML = "<b>[AtlasRoute]</b> " + html;
+    chron.appendChild(d);
+    while (chron.children.length > 6) chron.removeChild(chron.firstChild);
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  // ---------------------------------------------------------------- the map
+  var W = null, byId = {};
+  function proj(p) {
+    if (p.continent === "EK") return [p.x * 0.1 + 470, (9800 - p.y) * 0.1 + 60];
+    if (p.continent === "ZEP") return [495, 80];
+    return [p.x * 0.1 - 70, (10000 - p.y) * 0.1 + 40];
+  }
+  var CITIES = { stormwind: 1, ironforge: 1, darnassus: 1, orgrimmar: 1, undercity: 1, thunderbluff: 1, valanaar: 1, dalaran: 1 };
+  var MODE = {
+    walk: "Walk", fly: "Fly", boat: "Sail", zeppelin: "Zeppelin", skyship: "Skyship", tram: "Deeprun Tram",
+    portal: "Portal", teleport: "Teleport", hearth: "Hearthstone", device: "Device"
+  };
+  var GLYPH = {
+    walk: '<path d="M3 11 C5 5 8 5 9 8 M10 11 C12 5 15 5 16 8" stroke="#3b2614" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
+    fly: '<path d="M1 9 C5 2 10 2 17 4 C12 5 11 7 13 9 C9 8 7 9 8 12 C5 10 3 10 1 9Z" fill="#253f7a"/>',
+    boat: '<path d="M2 9 H16 L13 13 H5Z M9 1 V9 M9 2 L14 7 H9" fill="#1f6b66" stroke="#1f6b66" stroke-width="1"/>',
+    tram: '<rect x="3" y="2" width="12" height="8" rx="2" fill="#1f6b66"/><path d="M3 13 H15" stroke="#1f6b66" stroke-width="1.5"/>',
+    zeppelin: '<ellipse cx="9" cy="5" rx="8" ry="4" fill="#8a2318"/><rect x="6" y="9" width="6" height="3" fill="#8a2318"/>',
+    skyship: '<ellipse cx="9" cy="5" rx="8" ry="3.6" fill="#8a6a12"/><path d="M4 10 H14 L12 13 H6Z" fill="#8a6a12"/>',
+    portal: '<circle cx="9" cy="7" r="5" stroke="#6a2c8a" stroke-width="2" fill="none"/><circle cx="9" cy="7" r="2" fill="#6a2c8a"/>',
+    teleport: '<path d="M9 1 L10.5 5.5 L15 7 L10.5 8.5 L9 13 L7.5 8.5 L3 7 L7.5 5.5Z" fill="#6a2c8a"/>',
+    hearth: '<path d="M3 13 L3 6 L9 1 L15 6 L15 13Z" fill="#6a2c8a"/><circle cx="9" cy="9" r="2" fill="#ead8ab"/>',
+    device: '<circle cx="9" cy="7" r="4" fill="none" stroke="#6a2c8a" stroke-width="2.5" stroke-dasharray="2 1.2"/>'
+  };
+  function glyph(mode) {
+    return '<svg class="glyph" viewBox="0 0 18 14" aria-hidden="true">' + (GLYPH[mode] || GLYPH.walk) + "</svg>";
+  }
+
+  function drawWorld() {
+    var lands = document.getElementById("lands");
+    var groups = {};
+    function groupOf(p) { return p.region === "TEL" || p.continent === "TEL" ? "TEL" : p.continent; }
+    W.places.forEach(function (p) {
+      var g = groupOf(p);
+      if (!groups[g]) groups[g] = el("g", { filter: "url(#land)" }, lands);
+      var xy = proj(p);
+      el("circle", { cx: xy[0], cy: xy[1], r: g === "ZEP" ? 24 : 36, fill: "#000" }, groups[g]);
+    });
+    // fill the interior: midpoints of flight links and land routes on the same landmass
+    W.links.forEach(function (l) {
+      var a = byId[l.a], b = byId[l.b];
+      if (!a || !b || groupOf(a) !== groupOf(b)) return;
+      var pa = proj(a), pb = proj(b);
+      var d = Math.hypot(pa[0] - pb[0], pa[1] - pb[1]);
+      if (d > 240) return;
+      for (var t = 0.25; t < 1; t += 0.25) {
+        el("circle", { cx: pa[0] + (pb[0] - pa[0]) * t, cy: pa[1] + (pb[1] - pa[1]) * t, r: 30, fill: "#000" }, groups[groupOf(a)]);
+      }
+    });
+    // inset frame for Zephras Isle
+    var names = document.getElementById("names");
+    el("rect", { x: 438, y: 30, width: 114, height: 92, fill: "none", stroke: "#3b2614", "stroke-width": 1, "stroke-dasharray": "3 2" }, names);
+    var zt = el("text", { x: 495, y: 136, "text-anchor": "middle", "class": "seaname", style: "font-size:12px;letter-spacing:.08em" }, names);
+    zt.textContent = "Zephras Isle, in the Skywall";
+    var k = el("text", { x: 150, y: 990, "class": "continent" }, names); k.textContent = "Kalimdor";
+    var e = el("text", { x: 820, y: 96, "class": "continent", "text-anchor": "middle" }, names); e.textContent = "Eastern Kingdoms";
+    var s = el("text", { x: 0, y: 0, "class": "seaname", transform: "translate(492 640) rotate(-90)", "text-anchor": "middle" }, names);
+    s.textContent = "The Great Sea";
+    // faint chart grid
+    var grid = document.getElementById("grid");
+    for (var gx = 100; gx < 1000; gx += 100) el("line", { x1: gx, y1: 0, x2: gx, y2: 1060, "stroke-dasharray": "2 6" }, grid);
+    for (var gy = 100; gy < 1060; gy += 100) el("line", { x1: 0, y1: gy, x2: 1000, y2: gy, "stroke-dasharray": "2 6" }, grid);
+    drawCompass();
+    // places and labels
+    var places = document.getElementById("places"), labels = document.getElementById("labels");
+    W.places.forEach(function (p) {
+      var xy = proj(p);
+      var c = el("circle", { cx: xy[0], cy: xy[1], r: 2.3, "class": "place" }, places);
+      var t = el("title", {}, c); t.textContent = p.name + ", " + p.zone;
+      var lb = el("text", { x: xy[0] + 6, y: xy[1] - 5, "class": "lbl" + (CITIES[p.id] ? " city" : " hidden"), "data-id": p.id }, labels);
+      lb.textContent = p.name;
+    });
+  }
+
+  function drawCompass() {
+    var g = document.getElementById("compass");
+    el("circle", { r: 34, fill: "none", stroke: "#3b2614", "stroke-width": 0.8 }, g);
+    el("circle", { r: 27, fill: "none", stroke: "#3b2614", "stroke-width": 0.5, "stroke-dasharray": "1 2" }, g);
+    el("path", { d: "M0 -44 L6 0 L0 44 L-6 0Z", fill: "#3b2614" }, g);
+    el("path", { d: "M-44 0 L0 -6 L44 0 L0 6Z", fill: "#6b4a2b" }, g);
+    el("path", { d: "M0 -44 L6 0 L0 0Z M0 44 L-6 0 L0 0Z", fill: "#ead8ab" }, g);
+    var n = el("text", { y: -50, "text-anchor": "middle", "class": "lbl city" }, g); n.textContent = "N";
+  }
+
+  function usable(item, faction, cls, beta) {
+    if (item.faction && item.faction !== faction) return false;
+    if (item.class && item.class !== cls) return false;
+    if (item.unconfirmed && !beta) return false;
+    return true;
+  }
+  function arc(pa, pb, bend) {
+    var mx = (pa[0] + pb[0]) / 2, my = (pa[1] + pb[1]) / 2;
+    var dx = pb[0] - pa[0], dy = pb[1] - pa[1];
+    return "M" + pa[0].toFixed(1) + " " + pa[1].toFixed(1) + " Q" + (mx - dy * bend).toFixed(1) + " " + (my + dx * bend).toFixed(1) +
+      " " + pb[0].toFixed(1) + " " + pb[1].toFixed(1);
+  }
+  function drawNetwork(faction, cls, beta) {
+    var g = document.getElementById("network");
+    g.textContent = "";
+    W.links.forEach(function (l) {
+      if (!usable(l, faction, cls, beta)) return;
+      el("path", { d: arc(proj(byId[l.a]), proj(byId[l.b]), 0.08), "class": "netline" }, g);
+    });
+    W.transports.forEach(function (t) {
+      if (!usable(t, faction, cls, beta) || t.mode === "portal" || t.mode === "tram") return;
+      var cls2 = "lane" + (t.mode === "zeppelin" ? " zep" : t.mode === "skyship" ? " sky" : "");
+      el("path", { d: arc(proj(byId[t.from]), proj(byId[t.to]), 0.12), "class": cls2 }, g);
+    });
+    var places = document.getElementById("places");
+    Array.prototype.slice.call(places.querySelectorAll(".fm")).forEach(function (n) { n.remove(); });
+    W.masters.forEach(function (m) {
+      if (!usable(m, faction, cls, beta)) return;
+      var xy = proj(byId[m.id]);
+      var color = m.class ? "#6a2c8a" : m.faction === "Alliance" ? "#2f4d8a" : m.faction === "Horde" ? "#8a2318" : "#b8902f";
+      var u = el("use", { href: "#g-wing", x: xy[0] - 11, y: xy[1] - 9, width: 9, height: 9, fill: color, "class": "fm" }, places);
+      var t = el("title", {}, u); t.textContent = byId[m.id].name + " flight master";
+    });
+  }
+
+  // ---------------------------------------------------------------- route drawing + animation
+  var anim = null;
+  function clearRoute() {
+    if (anim) { cancelAnimationFrame(anim.raf); anim = null; }
+    document.getElementById("route").textContent = "";
+    document.getElementById("markers").textContent = "";
+    document.getElementById("token").style.display = "none";
+    Array.prototype.slice.call(document.querySelectorAll(".lbl.route")).forEach(function (n) {
+      n.classList.remove("route"); if (!CITIES[n.getAttribute("data-id")]) n.classList.add("hidden");
+    });
+  }
+  function showLabel(id) {
+    var n = document.querySelector('.lbl[data-id="' + id + '"]');
+    if (n) { n.classList.remove("hidden"); n.classList.add("route"); }
+  }
+  var BEND = { fly: 0.14, boat: 0.1, zeppelin: 0.1, skyship: 0.12, tram: 0, walk: 0, teleport: 0.05, hearth: 0.05, device: 0.05, portal: 0 };
+  // segs: [{mode, path:[ids], step}] -> SVG elements with a reveal mask each
+  function buildSegments(segs) {
+    var g = document.getElementById("route");
+    var defs = el("defs", {}, g);
+    var out = [];
+    segs.forEach(function (s, i) {
+      var pts = s.path.map(function (id) { return proj(byId[id]); });
+      var d = "";
+      for (var j = 1; j < pts.length; j++) {
+        var piece = arc(pts[j - 1], pts[j], BEND[s.mode] || 0);
+        d += (j === 1 ? piece : piece.replace(/^M[^Q]+/, ""));
+      }
+      if (pts.length < 2 || (pts.length === 2 && pts[0][0] === pts[1][0] && pts[0][1] === pts[1][1])) return;
+      var mask = el("mask", { id: "rv" + i, maskUnits: "userSpaceOnUse", x: 0, y: 0, width: 1000, height: 1060 }, defs);
+      var mp = el("path", { d: d, stroke: "#fff", "stroke-width": 10, fill: "none", "stroke-linecap": "round" }, mask);
+      var vis = el("path", { d: d, "class": "seg " + s.mode, mask: "url(#rv" + i + ")", "data-step": s.step }, g);
+      var L = vis.getTotalLength() || 1;
+      mp.setAttribute("stroke-dasharray", L + " " + (L + 20));
+      mp.setAttribute("stroke-dashoffset", L);
+      out.push({ vis: vis, mask: mp, L: L, s: s, end: pts[pts.length - 1] });
+    });
+    return out;
+  }
+  function sparkle(xy) {
+    var g = document.getElementById("route");
+    for (var r = 5; r <= 11; r += 6) el("circle", { cx: xy[0], cy: xy[1], r: r, "class": "spark" }, g);
+  }
+  function animate(parts, totalMs, onDone) {
+    var token = document.getElementById("token");
+    if (reduceMotion || !parts.length) {
+      parts.forEach(function (p) { p.mask.setAttribute("stroke-dashoffset", 0); if (p.s.magic) sparkle(p.end); });
+      if (onDone) onDone();
+      return;
+    }
+    var weights = parts.map(function (p) { return Math.max(0.35, Math.sqrt(p.s.seconds || 30)); });
+    var sum = weights.reduce(function (a, b) { return a + b; }, 0);
+    var durs = weights.map(function (w) { return totalMs * w / sum; });
+    token.style.display = "";
+    var i = 0, t0 = null;
+    anim = {};
+    function frame(ts) {
+      if (t0 === null) t0 = ts;
+      var p = parts[i], f = Math.min(1, (ts - t0) / durs[i]);
+      p.mask.setAttribute("stroke-dashoffset", p.L * (1 - f));
+      var pt = p.vis.getPointAtLength(p.L * f);
+      token.setAttribute("transform", "translate(" + pt.x.toFixed(1) + " " + pt.y.toFixed(1) + ")");
+      if (f >= 1) {
+        if (p.s.magic) sparkle(p.end);
+        i++; t0 = ts;
+        if (i >= parts.length) { anim = null; if (onDone) onDone(); return; }
+      }
+      anim.raf = requestAnimationFrame(frame);
+    }
+    anim.raf = requestAnimationFrame(frame);
+  }
+  var MAGIC = { teleport: 1, hearth: 1, device: 1, portal: 1 };
+
+  function drawMarkers(steps) {
+    var g = document.getElementById("markers");
+    var seen = {};
+    steps.forEach(function (st, k) {
+      var xy = proj(byId[st.place]);
+      var key = st.place;
+      var off = (seen[key] = (seen[key] || 0) + 1) - 1;
+      // stops at the same place line up to the left of it, leaving the label free on the right
+      var m = el("g", { "class": "marker", transform: "translate(" + (xy[0] - 10 - off * 17) + " " + (xy[1] + 1) + ")" }, g);
+      var tt = el("title", {}, m);
+      tt.textContent = (k + 1) + ". " + (st.kind === "accept" ? "Accept " : st.kind === "turnin" ? "Hand in " : "Do ") + st.name;
+      el("circle", { r: 7.5, "class": "disc" + (st.kind === "objective" ? " obj" : "") }, m);
+      var n = el("text", { "class": "num", y: 3.4 }, m); n.textContent = k + 1;
+      if (st.kind !== "objective") {
+        var q = el("text", { "class": "glyphq", y: -10 }, m);
+        q.textContent = st.kind === "accept" ? "!" : "?";
+      }
+      showLabel(st.place);
+    });
+  }
+
+  // ---------------------------------------------------------------- journey tab
+  var state = { faction: "Alliance", cfaction: "Alliance" };
+  var DEFAULT_START = { Alliance: "ironforge", Horde: "orgrimmar" };
+  var DEFAULT_HEARTH = { Alliance: "stormwind", Horde: "orgrimmar" };
+
+  function fillPlaces(select, value, withNone) {
+    select.textContent = "";
+    if (withNone) select.appendChild(h("option", { value: "" }, "On cooldown"));
+    var groups = { KAL: "Kalimdor", EK: "Eastern Kingdoms", TEL: "Teldrassil", ZEP: "Zephras Isle" };
+    Object.keys(groups).forEach(function (c) {
+      var og = h("optgroup", { label: groups[c] });
+      W.places.filter(function (p) { return p.continent === c; })
+        .sort(function (a, b) { return a.name.localeCompare(b.name); })
+        .forEach(function (p) { og.appendChild(h("option", { value: p.id }, p.name)); });
+      select.appendChild(og);
+    });
+    select.value = value;
+  }
+  function fillQuests() {
+    var ul = document.getElementById("quests");
+    ul.textContent = "";
+    var list = W.quests[state.faction === "Horde" ? "horde" : "alliance"];
+    list.forEach(function (q, i) {
+      var li = h("li");
+      var lab = h("label");
+      var cb = h("input", { type: "checkbox", value: q.id });
+      if (i < 5) cb.checked = true;
+      lab.appendChild(cb);
+      lab.appendChild(h("span", { "class": "qmark", "aria-hidden": "true" }, q.accepted ? "?" : "!"));
+      lab.appendChild(h("span", { "class": "qname" }, q.name));
+      var parts = [];
+      if (!q.accepted) parts.push("from " + byId[q.giver].name);
+      if (q.objectives.length) parts.push("to " + q.objectives.map(function (o) { return byId[o].name; }).join(", "));
+      parts.push((q.accepted ? "hand in at " : "back to ") + byId[q.turnin].name);
+      lab.appendChild(h("span", { "class": "qroute" }, (q.accepted ? "Already accepted, " : "") + parts.join(", ")));
+      li.appendChild(lab);
+      ul.appendChild(li);
+    });
+  }
+  function setFaction(f, which) {
+    var key = which === "cover" ? "cfaction" : "faction";
+    state[key] = f;
+    var panel = document.getElementById(which === "cover" ? "panel-cover" : "panel-journey");
+    Array.prototype.forEach.call(panel.querySelectorAll(".banner"), function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-faction") === f ? "true" : "false");
+    });
+    if (which === "cover") {
+      document.getElementById("cstart").value = DEFAULT_START[f];
+      drawNetwork(f, document.getElementById("ccls").value, false);
+      clearRoute();
+      return;
+    }
+    document.getElementById("start").value = DEFAULT_START[f];
+    document.getElementById("hearth").value = DEFAULT_HEARTH[f];
+    fillQuests();
+    refreshNetwork();
+    clearRoute();
+    document.getElementById("itinerary").innerHTML = '<p class="empty">Tick some quests and plan the journey. The route will be inked onto the map.</p>';
+  }
+  function refreshNetwork() {
+    drawNetwork(state.faction, document.getElementById("cls").value, document.getElementById("beta").checked);
+  }
+
+  function planQuery() {
+    var ids = Array.prototype.map.call(document.querySelectorAll("#quests input:checked"), function (c) { return c.value; });
+    return {
+      ids: ids,
+      q: "faction=" + state.faction +
+        "&class=" + document.getElementById("cls").value +
+        "&start=" + document.getElementById("start").value +
+        "&hearth=" + document.getElementById("hearth").value +
+        "&speed=" + document.getElementById("mount").value +
+        "&engineer=" + (document.getElementById("engineer").checked ? 1 : 0) +
+        "&flier=" + (document.getElementById("flier").checked ? 1 : 0) +
+        "&beta=" + (document.getElementById("beta").checked ? 1 : 0) +
+        "&quests=" + ids.join(",")
+    };
+  }
+
+  function plan() {
+    var pq = planQuery();
+    var btn = document.getElementById("plan");
+    if (!pq.ids.length) {
+      document.getElementById("itinerary").innerHTML = '<p class="empty">The quest log is empty. Tick at least one quest above.</p>';
+      return;
+    }
+    btn.disabled = true; btn.textContent = "Consulting the flight master…";
+    say("Planning from " + esc(byId[document.getElementById("start").value].name) + "…", true);
+    call("plan", pq.q).then(function (r) {
+      btn.disabled = false; btn.textContent = "Plan the journey";
+      renderPlan(r);
+    }).catch(function (e) {
+      btn.disabled = false; btn.textContent = "Plan the journey";
+      say("The planner stopped: " + esc(e.message));
+    });
+  }
+
+  function renderPlan(r) {
+    clearRoute();
+    var segs = [], byMode = {};
+    r.steps.forEach(function (st, k) {
+      st.travel.forEach(function (t) {
+        byMode[t.mode] = (byMode[t.mode] || 0) + t.seconds;
+        segs.push({ mode: t.mode, path: t.path, step: k, seconds: t.seconds, magic: !!MAGIC[t.mode] });
+        t.path.forEach(showLabel);
+      });
+    });
+    var parts = buildSegments(segs);
+    drawMarkers(r.steps);
+    animate(parts, Math.min(9000, 1600 + parts.length * 260));
+
+    var travel = 0, work = 0;
+    r.steps.forEach(function (st) { travel += st.seconds; work += st.work; });
+    var box = document.getElementById("itinerary");
+    box.textContent = "";
+    var sum = h("p", { "class": "summary" });
+    sum.innerHTML = "<strong>" + mins(r.seconds) + " minutes</strong> for " + r.stops + " stops: " +
+      mins(travel) + " on the road and " + mins(work) + " doing the quests.";
+    box.appendChild(sum);
+    var ol = h("ol", { "class": "itin" });
+    r.steps.forEach(function (st, k) {
+      var li = h("li", { tabindex: "0", "data-step": k });
+      li.appendChild(h("span", { "class": "n" }, (k + 1) + "."));
+      var what = h("div", { "class": "what" });
+      var label = st.kind === "accept" ? "Accept " : st.kind === "turnin" ? "Hand in " : "Do ";
+      var left = h("span");
+      left.innerHTML = '<span class="kind ' + st.kind + '">' + label + "</span>" + esc(st.name) + ", " + esc(byId[st.place].name);
+      what.appendChild(left);
+      what.appendChild(h("span", null, fmt(st.seconds + st.work)));
+      li.appendChild(what);
+      if (st.travel.length) {
+        var ul = h("ul");
+        st.travel.forEach(function (t) {
+          var row = h("li");
+          row.innerHTML = glyph(t.mode) + "<span>" + esc(t.name || MODE[t.mode] || t.mode) + " to " + esc(byId[t.to].name) + "</span><span>" + fmt(t.seconds) + "</span>";
+          ul.appendChild(row);
+        });
+        li.appendChild(ul);
+      }
+      li.addEventListener("mouseenter", function () { highlight(k); });
+      li.addEventListener("focus", function () { highlight(k); });
+      li.addEventListener("mouseleave", function () { highlight(null); });
+      li.addEventListener("blur", function () { highlight(null); });
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
+    renderLegend(byMode);
+
+    var flown = byMode.fly || 0;
+    say(r.stops + " stops in " + mins(r.seconds) + " minutes, " + mins(flown) + " of them in the air. " +
+      (r.method === "exact" ? "This order is proven fastest." : "Order found by the heuristic.") +
+      " Worked out in " + Math.round(r.ms) + " ms.");
+    var used = [];
+    r.steps.forEach(function (st) { st.travel.forEach(function (t) { if (MAGIC[t.mode] && t.mode !== "portal") used.push(t.name || MODE[t.mode]); }); });
+    if (used.length) say("Spends " + esc(used.join(", ")) + ".");
+  }
+  function highlight(k) {
+    Array.prototype.forEach.call(document.querySelectorAll("#route .seg"), function (p) {
+      var on = k !== null && p.getAttribute("data-step") === String(k);
+      p.classList.toggle("hl", on);
+      p.classList.toggle("dim", k !== null && !on);
+    });
+  }
+  function renderLegend(byMode) {
+    var lg = document.getElementById("legend");
+    lg.textContent = "";
+    Object.keys(byMode).forEach(function (m) {
+      var d = h("div");
+      d.innerHTML = '<svg viewBox="0 0 34 8" aria-hidden="true"><path class="seg ' + m + '" d="M2 4 H32"/></svg><span>' + (MODE[m] || m) + ", " + fmt(byMode[m]) + "</span>";
+      lg.appendChild(d);
+    });
+  }
+
+  // ---------------------------------------------------------------- coverage tab
+  var lastCover = null;
+  function cover() {
+    var btn = document.getElementById("cover");
+    btn.disabled = true; btn.textContent = "Working it out…";
+    var start = document.getElementById("cstart").value;
+    var q = "faction=" + state.cfaction + "&class=" + document.getElementById("ccls").value + "&start=" + start + "&hearth=";
+    say("Covering the " + state.cfaction + " flight network from " + esc(byId[start].name) + "…", true);
+    call("cover", q).then(function (r) {
+      btn.disabled = false; btn.textContent = "Work it out";
+      lastCover = r;
+      var rows = [["atlas", "Atlas (as written)"], ["weighted", "Weighted Atlas"], ["postman", "Rural Postman"]];
+      var html = '<table class="cmp"><thead><tr><th>Method</th><th>Time</th><th>Flights</th><th>Map</th></tr></thead><tbody>';
+      rows.forEach(function (row) {
+        var m = r.methods[row[0]];
+        html += '<tr data-m="' + row[0] + '"><td>' + row[1] + "</td><td>" + fmt(m.seconds) + "</td><td>" + m.covered + " / " + r.required +
+          '</td><td><button data-m="' + row[0] + '">Draw</button></td></tr>';
+      });
+      html += "<tr><td>Lower bound</td><td>" + fmt(r.lowerBound) + "</td><td></td><td></td></tr></tbody></table>";
+      var a = r.methods.atlas.seconds, p = r.methods.postman.seconds;
+      html += '<p class="note">Atlas takes ' + (a / p).toFixed(1) + " times as long as the Rural Postman here. Atlas counts every edge as one step, so a 6-minute boat ride and a 5-second walk cost it the same.</p>";
+      document.getElementById("cmp").innerHTML = html;
+      Array.prototype.forEach.call(document.querySelectorAll("#cmp button"), function (b) {
+        b.addEventListener("click", function () { drawCover(b.getAttribute("data-m")); });
+      });
+      say("Atlas " + fmt(a) + ", weighted Atlas " + fmt(r.methods.weighted.seconds) + ", Rural Postman " + fmt(p) + ".");
+      drawCover("postman");
+    }).catch(function (e) {
+      btn.disabled = false; btn.textContent = "Work it out";
+      say("The planner stopped: " + esc(e.message));
+    });
+  }
+  function drawCover(which) {
+    if (!lastCover) return;
+    clearRoute();
+    Array.prototype.forEach.call(document.querySelectorAll("#cmp tr[data-m]"), function (tr) {
+      tr.classList.toggle("on", tr.getAttribute("data-m") === which);
+    });
+    var steps = lastCover.methods[which].steps;
+    var segs = [];
+    var at = document.getElementById("cstart").value;
+    steps.forEach(function (st) {
+      var from = st.from || at;
+      if (from !== st.to) segs.push({ mode: st.mode, path: [from, st.to], step: 0, seconds: st.seconds, magic: !!MAGIC[st.mode] });
+      at = st.to;
+    });
+    var parts = buildSegments(segs);
+    parts.forEach(function (p) { p.vis.style.opacity = which === "atlas" ? ".55" : ""; });
+    animate(parts, Math.min(14000, 2500 + parts.length * 18));
+  }
+
+  // ---------------------------------------------------------------- wiring
+  function wire() {
+    Array.prototype.forEach.call(document.querySelectorAll("#panel-journey .banner"), function (b) {
+      b.addEventListener("click", function () { setFaction(b.getAttribute("data-faction"), "journey"); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("#panel-cover .banner"), function (b) {
+      b.addEventListener("click", function () { setFaction(b.getAttribute("data-faction"), "cover"); });
+    });
+    ["cls", "beta"].forEach(function (id) { document.getElementById(id).addEventListener("change", refreshNetwork); });
+    document.getElementById("ccls").addEventListener("change", function () { drawNetwork(state.cfaction, this.value, false); });
+    document.getElementById("plan").addEventListener("click", plan);
+    document.getElementById("cover").addEventListener("click", cover);
+    var tabs = [["tab-journey", "panel-journey"], ["tab-cover", "panel-cover"]];
+    tabs.forEach(function (t) {
+      document.getElementById(t[0]).addEventListener("click", function () {
+        tabs.forEach(function (u) {
+          var on = u[0] === t[0];
+          document.getElementById(u[0]).setAttribute("aria-selected", on ? "true" : "false");
+          document.getElementById(u[1]).hidden = !on;
+        });
+        clearRoute();
+        if (t[0] === "tab-cover") drawNetwork(state.cfaction, document.getElementById("ccls").value, false);
+        else refreshNetwork();
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------- start
+  document.getElementById("tip").innerHTML = "<b>Tip:</b> " + TIPS[Math.floor(Math.random() * TIPS.length)];
+  setLoad(8, "Waking the Lua engine…");
+  startWorker();
+  ready.then(function () { return call("world", ""); }).then(function (world) {
+    W = world;
+    W.places.forEach(function (p) { byId[p.id] = p; });
+    drawWorld();
+    fillPlaces(document.getElementById("start"), DEFAULT_START.Alliance);
+    fillPlaces(document.getElementById("hearth"), DEFAULT_HEARTH.Alliance, true);
+    fillPlaces(document.getElementById("cstart"), DEFAULT_START.Alliance);
+    fillQuests();
+    refreshNetwork();
+    wire();
+    say("Welcome, traveller. The map shows every flight path your faction can use.", true);
+    setTimeout(function () { document.getElementById("loading").classList.add("gone"); }, reduceMotion ? 0 : 500);
+  }).catch(function (e) {
+    setLoad(100, "The Lua engine could not start: " + e.message + ". The page fetches the wasmoon VM from cdn.jsdelivr.net, so it needs an internet connection.");
+  });
+})();
+</script>
+</body>
+</html>
