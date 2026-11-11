@@ -74,13 +74,14 @@ button, select, input { font: inherit; }
 
 /* ---------- the map ---------- */
 .mapwrap {
-  position: relative;
+  position: relative; align-self: start;
   border: 3px double var(--gold);
   outline: 1px solid #000; outline-offset: 0;
   box-shadow: 0 18px 40px rgba(0,0,0,.55), inset 0 0 0 1px rgba(0,0,0,.4);
   background: var(--parch);
 }
 #map { display: block; width: 100%; height: auto; }
+@media (min-width: 981px) { .mapwrap { position: sticky; top: 12px; } }
 .chronicle {
   position: absolute; left: 14px; bottom: 14px; width: min(440px, 62%);
   max-height: 128px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
@@ -120,7 +121,57 @@ button, select, input { font: inherit; }
 .marker .num { font-family: var(--body); font-weight: 700; font-size: 9.5px; fill: #f6e7bd; text-anchor: middle; }
 .marker .glyphq { font-family: var(--fell); font-size: 20px; text-anchor: middle; fill: var(--quest); paint-order: stroke; stroke: #2a1a08; stroke-width: 3px; }
 .spark { fill: none; stroke: var(--i-magic); stroke-width: 1.2; }
-#token circle.ring { fill: var(--parch); stroke: var(--wax); stroke-width: 2; }
+/* the traveller */
+.figure .cloak { fill: var(--cloak, #2f4d8a); stroke: #2a1a08; stroke-width: .5; }
+.figure .skin { fill: #e7c29b; stroke: #2a1a08; stroke-width: .5; }
+.figure .ink { stroke: #2a1a08; stroke-width: .6; }
+.figure .leg, .figure .gal path { stroke: #2a1a08; stroke-width: 1.6; stroke-linecap: round; fill: none; }
+.figure .gal path { stroke: #4a2f17; }
+.figure .leg, .figure .gal { transform-box: fill-box; transform-origin: 50% 0; }
+.figure .wing { transform-box: fill-box; transform-origin: 50% 100%; }
+.figure .bob, .figure .prop, .figure .swirl { transform-box: fill-box; transform-origin: center; }
+.figure .swirl { animation: rot 1.4s linear infinite; }
+.moving .leg { animation: swing .42s ease-in-out infinite alternate; }
+.moving .leg.b { animation-direction: alternate-reverse; }
+.moving .gal { animation: swing .3s ease-in-out infinite alternate; }
+.moving .gal.b { animation-direction: alternate-reverse; }
+.moving .wing { animation: flap .5s ease-in-out infinite alternate; }
+.moving .bob { animation: bob 1.5s ease-in-out infinite alternate; }
+.moving .prop { animation: spin .2s linear infinite; }
+@keyframes swing { from { transform: rotate(24deg); } to { transform: rotate(-24deg); } }
+@keyframes flap { from { transform: scaleY(1); } to { transform: scaleY(.22); } }
+@keyframes bob { from { transform: translateY(0) rotate(-2.5deg); } to { transform: translateY(-1.4px) rotate(2.5deg); } }
+@keyframes spin { from { transform: scaleY(1); } to { transform: scaleY(-1); } }
+@keyframes rot { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .figure * { animation: none !important; } }
+.hit { fill: transparent; cursor: pointer; }
+.hit:hover { fill: rgba(184,144,47,.25); }
+.hit:focus-visible { outline: none; stroke: var(--gold-hi); stroke-width: 2; fill: rgba(184,144,47,.2); }
+
+/* hourglass and travel card */
+.clockbox {
+  position: absolute; left: 14px; top: 14px; display: flex; align-items: center; gap: 10px;
+  background: rgba(18, 11, 6, .78); border: 1px solid rgba(184,144,47,.55);
+  padding: 5px 10px; color: #f1e3bd; font-size: 15px;
+}
+.clockbox[hidden] { display: none; }
+.clockbox svg { width: 16px; height: 22px; }
+.clockbox .t { font-family: var(--fell); font-size: 20px; color: var(--gold-hi); font-variant-numeric: tabular-nums; min-width: 4.2em; }
+.clockbox label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+.clockbox button { background: none; border: 1px solid var(--gold); color: #f1e3bd; cursor: pointer; padding: 1px 10px; font-family: var(--fell); font-size: 16px; }
+.travelcard {
+  position: absolute; z-index: 3; width: min(310px, 86%);
+  color: var(--ink); background: var(--parch); border: 3px double var(--gold); outline: 1px solid #000;
+  box-shadow: 0 10px 26px rgba(0,0,0,.5); padding: 10px 14px 12px;
+}
+.travelcard h3 { font-family: var(--fell); font-weight: 400; font-size: 22px; margin: 0 0 4px; color: var(--wax); }
+.travelcard ul { list-style: none; margin: 0 0 6px; padding: 0; font-size: 15px; }
+.travelcard li { display: grid; grid-template-columns: 22px 1fr auto; gap: 6px; align-items: center; }
+.travelcard p { margin: 4px 0 8px; }
+.travelcard .btns { display: flex; gap: 8px; }
+.travelcard .btns button { flex: 1; cursor: pointer; font-family: var(--fell); font-size: 18px; padding: 3px 8px; border-radius: 3px; }
+.travelcard .yes { background: linear-gradient(#83281c, var(--wax)); color: #f6e7bd; border: 2px solid var(--gold); }
+.travelcard .no { background: #f4e6c0; color: var(--ink); border: 1px solid #8a6a3a; }
 
 /* ---------- the journal ---------- */
 .journal {
@@ -291,12 +342,18 @@ footer p { margin: 2px 0; max-width: 100ch; }
       <g id="route"></g>
       <g id="markers"></g>
       <g id="labels"></g>
-      <g id="token" style="display:none"><circle class="ring" r="7"/><circle r="2.6" fill="#6e1f16"/></g>
+      <g id="traveller" class="figure" style="display:none" aria-hidden="true"><g id="trav-sprite"></g></g>
       <g id="compass" transform="translate(930 975)"></g>
       <rect width="1000" height="1060" filter="url(#paper)" style="mix-blend-mode:multiply" pointer-events="none"/>
       <rect width="1000" height="1060" fill="url(#burn)" pointer-events="none"/>
     </svg>
     <div class="chronicle" id="chronicle" aria-live="polite"></div>
+    <div class="clockbox" id="clockbox" hidden>
+      <svg viewBox="0 0 16 22" aria-hidden="true"><path d="M2 1 H14 M2 21 H14 M3 1 C3 8 8 9 8 11 C8 13 3 14 3 21 M13 1 C13 8 8 9 8 11 C8 13 13 14 13 21" fill="none" stroke="#e3c15d" stroke-width="1.4"/><path d="M5 5 H11 L8 9Z M5 20 H11 L8 16Z" fill="#e3c15d"/></svg>
+      <span>On the road</span><span class="t" id="clock">0:00</span>
+      <label><input type="checkbox" id="follow" checked> Follow</label>
+      <button id="skip" type="button">Skip</button>
+    </div>
   </div>
 
   <aside class="journal">
@@ -335,7 +392,7 @@ footer p { margin: 2px 0; max-width: 100ch; }
       </section>
       <section>
         <h2>The road ahead</h2>
-        <div id="itinerary"><p class="empty">Tick some quests and plan the journey. The route will be inked onto the map.</p></div>
+        <div id="itinerary"><p class="empty">Tick some quests and plan the journey. The route will be inked onto the map. You can also click any place on the map to travel there.</p></div>
         <div class="legend" id="legend"></div>
       </section>
     </div>
@@ -489,6 +546,8 @@ footer p { margin: 2px 0; max-width: 100ch; }
     if (p.continent === "ZEP") return [495, 80];
     return [p.x * 0.1 - 70, (10000 - p.y) * 0.1 + 40];
   }
+  // labels that would run into a neighbour's label
+  var LABEL_SIDE = { crossroads: "left", forgottencoast: "below", flamecrest: "left", skywatcher: "left", rogmar: "below", nijelspoint: "left" };
   var CITIES = { stormwind: 1, ironforge: 1, darnassus: 1, orgrimmar: 1, undercity: 1, thunderbluff: 1, valanaar: 1, dalaran: 1 };
   var MODE = {
     walk: "Walk", fly: "Fly", boat: "Sail", zeppelin: "Zeppelin", skyship: "Skyship", tram: "Deeprun Tram",
@@ -551,8 +610,22 @@ footer p { margin: 2px 0; max-width: 100ch; }
       var xy = proj(p);
       var c = el("circle", { cx: xy[0], cy: xy[1], r: 2.3, "class": "place" }, places);
       var t = el("title", {}, c); t.textContent = p.name + ", " + p.zone;
-      var lb = el("text", { x: xy[0] + 6, y: xy[1] - 5, "class": "lbl" + (CITIES[p.id] ? " city" : " hidden"), "data-id": p.id }, labels);
+      var side = LABEL_SIDE[p.id];
+      var lx = side === "left" ? xy[0] - 6 : side === "below" ? xy[0] - 4 : xy[0] + 6;
+      var ly = side === "below" ? xy[1] + 13 : xy[1] - 5;
+      var lb = el("text", { x: lx, y: ly, "text-anchor": side === "left" ? "end" : "start",
+                            "class": "lbl" + (CITIES[p.id] ? " city" : " hidden"), "data-id": p.id }, labels);
       lb.textContent = p.name;
+    });
+    // click (or Enter) on a place to travel there
+    var hits = el("g", {}, document.getElementById("map"));
+    hits.setAttribute("id", "hits");
+    W.places.forEach(function (p) {
+      var xy = proj(p);
+      var c = el("circle", { cx: xy[0], cy: xy[1], r: 8, "class": "hit", tabindex: 0, role: "button", "aria-label": "Travel to " + p.name, "data-id": p.id }, hits);
+      var t = el("title", {}, c); t.textContent = p.name + ", " + p.zone;
+      c.addEventListener("click", function () { offerTravel(p.id, c); });
+      c.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); offerTravel(p.id, c); } });
     });
   }
 
@@ -601,13 +674,167 @@ footer p { margin: 2px 0; max-width: 100ch; }
     });
   }
 
-  // ---------------------------------------------------------------- route drawing + animation
-  var anim = null;
+  // ---------------------------------------------------------------- the traveller's figure
+  // Drawn facing right, feet (or keel) at 0,0. The rider's seat is its own 0,0.
+  var GEAR = {
+    "": '<path d="M-2.7 -12.8 Q0.4 -16.6 3.4 -12.8Z" fill="#8f949a" class="ink"/><path d="M0.9 -13 V-11" stroke="#2a1a08" stroke-width=".7"/>' +
+        '<path d="M-3 -3 L-6.6 -14.6" stroke="#cfd3d6" stroke-width="1.3"/><path d="M-5.9 -6.1 L-3.4 -7.5" stroke="#8a6a12" stroke-width="1.1"/>',
+    MAGE: '<path d="M5.6 1 L6.4 -15" stroke="#6b4423" stroke-width="1.1"/><circle cx="6.5" cy="-16.3" r="1.8" fill="#9fe0ff" class="ink"/>' +
+          '<path d="M-3.2 -13.6 L4 -13.6 L1.4 -22.4 L0.2 -18Z" fill="#4b2a6b" class="ink"/><ellipse cx="0.4" cy="-13.6" rx="4.3" ry="1.05" fill="#3b1f55"/>',
+    DRUID: '<path d="M5.6 1 L6 -13 q2.6 -2 0 -4.2 q-2.2 1 -.6 2.2" stroke="#6b4423" stroke-width="1.1" fill="none"/><circle cx="6.2" cy="-15.3" r="1" fill="#6fbf3a"/>' +
+           '<path d="M-2.4 -14.2 q-1.6 -2.6 .6 -3 M0.6 -15 q0 -3 1.6 -3.2 M2.8 -14.2 q1.8 -2.4 .2 -3.2" stroke="#3f7a2a" stroke-width="1.3" fill="none"/>',
+    SHAMAN: '<path d="M5.8 1 L6.2 -14" stroke="#6b4423" stroke-width="1.2"/><rect x="4.7" y="-17.6" width="3" height="3.8" fill="#a8331f" class="ink"/><path d="M7.7 -16.2 l2.2 1" stroke="#e3c15d" stroke-width=".9"/>' +
+            '<path d="M-2.6 -13 Q0.4 -16 3.4 -13Z" fill="#7a5a3a"/><path d="M-2.4 -13.8 q-2.8 -1 -2.3 -4.2 M3.2 -13.8 q2.8 -1 2.3 -4.2" stroke="#efe6d0" stroke-width="1.2" fill="none"/>'
+  };
+  function rider(cls, leg) {
+    return (leg ? '<path d="M0.6 -.4 L1.8 4.2" stroke="#2a1a08" stroke-width="1.5" stroke-linecap="round"/>' : "") +
+      '<path class="cloak" d="M-3.6 0 L-4.4 -7.2 Q-4 -10.4 0 -10.4 Q4 -10.4 4.4 -7.2 L3.6 0Z"/>' +
+      '<circle cx="0.4" cy="-12.6" r="2.5" class="skin"/>' + (GEAR[cls] || GEAR[""]);
+  }
+  var SHADOW = '<ellipse cx="0" cy="0.6" rx="9" ry="1.8" fill="#2a1a08" opacity=".25"/>';
+  var SKYSHADOW = '<ellipse cx="0" cy="7" rx="7" ry="1.4" fill="#2a1a08" opacity=".18"/>';
+  var SPRITES = {
+    foot: function (c) {
+      return SHADOW + '<g transform="translate(0 -7.5)"><path class="leg a" d="M-1.4 0 L-2.2 7.2"/><path class="leg b" d="M1.6 0 L2.4 7.2"/>' + rider(c) + "</g>";
+    },
+    horse: function (c) {
+      return SHADOW + '<path d="M-8 -10 q-4 1 -4.6 6.2" stroke="#2a1a08" stroke-width="1.8" fill="none" stroke-linecap="round"/>' +
+        '<g class="gal a"><path d="M-6 -7 L-7 0"/><path d="M5 -7 L6.4 0"/></g><g class="gal b"><path d="M-4 -7 L-3.4 0"/><path d="M3.2 -7 L2.6 0"/></g>' +
+        '<ellipse cx="0" cy="-9" rx="8.2" ry="3.6" fill="#7a4e2a" class="ink"/>' +
+        '<path d="M5 -10.5 L8.5 -16.5 L12.6 -15.6 L12.4 -14 L9.4 -14.2 L8 -9.5Z" fill="#7a4e2a" class="ink"/>' +
+        '<path d="M9 -16.4 l.6 -1.9 l.8 1.7" fill="#7a4e2a" class="ink"/><path d="M5.6 -11.6 L8.4 -16.8" stroke="#2a1a08" stroke-width="1.4"/>' +
+        '<path class="cloak" d="M-3.2 -12.4 h6.4 v3.2 h-6.4z"/><g transform="translate(0 -12)">' + rider(c, true) + "</g>";
+    },
+    wolf: function (c) {
+      return SHADOW + '<path d="M-7.5 -8.5 q-4.6 -3.4 -5.6 -0.4 q2 0 3 1.6Z" fill="#5b5752" class="ink"/>' +
+        '<g class="gal a"><path d="M-5.6 -6 L-6.6 0"/><path d="M4.6 -6 L5.8 0"/></g><g class="gal b"><path d="M-3.8 -6 L-3.2 0"/><path d="M3 -6 L2.4 0"/></g>' +
+        '<ellipse cx="0" cy="-7.8" rx="8" ry="3.1" fill="#6f6a63" class="ink"/>' +
+        '<path d="M5 -9 L9 -11.8 L13.6 -9.6 L9.4 -8 L7 -6.5Z" fill="#6f6a63" class="ink"/><path d="M8.6 -11.4 l.8 -2.8 l1.5 2.3" fill="#6f6a63" class="ink"/>' +
+        '<circle cx="10.6" cy="-10.2" r=".5" fill="#f2c94c"/><path class="cloak" d="M-3.2 -10.8 h6.4 v3 h-6.4z"/><g transform="translate(0 -10.4)">' + rider(c, true) + "</g>";
+    },
+    gryphon: function (c) {
+      return SKYSHADOW + '<g class="wing"><path d="M-2 -11 Q-6.5 -22 -1.4 -27.5 Q2 -21 6.2 -21 Q4 -17 3 -11Z" fill="#9b7442" class="ink"/><path d="M-1 -24 L1 -14 M1.8 -21 L2.8 -13" stroke="#5b3f1e" stroke-width=".5"/></g>' +
+        '<path d="M-9 -9 q-4 -1 -5 -4.4" stroke="#8a6a3a" stroke-width="1.3" fill="none"/><circle cx="-14.1" cy="-13.5" r="1.2" fill="#8a6a3a"/>' +
+        '<path d="M-5 -7 l-1.4 3 M3 -7 l1.6 3" stroke="#8a6a3a" stroke-width="1.2"/>' +
+        '<ellipse cx="-1" cy="-9" rx="8" ry="3.4" fill="#c79a52" class="ink"/><ellipse cx="5.5" cy="-10" rx="3.6" ry="3.2" fill="#f2ead6" class="ink"/>' +
+        '<circle cx="8.6" cy="-13.6" r="2.6" fill="#f2ead6" class="ink"/><path d="M10.8 -14.4 L13.8 -13 L10.8 -12.3Z" fill="#e3b23c" class="ink"/><circle cx="9.2" cy="-14.2" r=".45" fill="#2a1a08"/>' +
+        '<g transform="translate(-1.4 -12.2)">' + rider(c, true) + "</g>";
+    },
+    wyvern: function (c) {
+      return SKYSHADOW + '<g class="wing"><path d="M-2 -11 L-6.4 -25.6 L-2 -21.4 L1 -26.6 L3 -20.4 L7.4 -23.4 L4 -11Z" fill="#7a2e17" class="ink"/></g>' +
+        '<path d="M-8 -9 q-5 0 -6.4 -5.2" stroke="#9a6a3a" stroke-width="1.5" fill="none"/><path d="M-14.4 -14.2 l-1.6 -2.6 l2.6 1z" fill="#2a1a08"/>' +
+        '<path d="M-4 -6.6 l-1 3 M3 -6.6 l1.4 3" stroke="#9a6a3a" stroke-width="1.2"/>' +
+        '<ellipse cx="0" cy="-9" rx="8" ry="3.3" fill="#b07a44" class="ink"/>' +
+        '<path d="M5 -11 L9 -15.2 L13.8 -13.6 L9.6 -11.4Z" fill="#b07a44" class="ink"/><path d="M9.2 -15 l-1.2 -2.8 M10.4 -14.7 l.2 -2.8" stroke="#2a1a08" stroke-width=".8"/>' +
+        '<g transform="translate(-1.4 -11.8)">' + rider(c, true) + "</g>";
+    },
+    boat: function (c) {
+      return '<path d="M-16 2.6 q2 -1.6 4 0 t4 0 t4 0 t4 0 t4 0 t4 0 t4 0 t4 0" stroke="#1f6b66" stroke-width=".8" fill="none"/>' +
+        '<g class="bob"><path d="M1 -5 V-27.5" stroke="#3b2614" stroke-width="1.2"/><path d="M1.6 -25.4 Q11.4 -17 1.6 -8Z" fill="#f1e6c8" class="ink"/>' +
+        '<path class="cloak" d="M1.8 -19.4 Q8.6 -17.2 7.2 -14.6 L1.8 -14.6Z"/><path class="cloak" d="M1 -27.5 l5.2 1.4 l-5.2 1.4z"/>' +
+        '<g transform="translate(-7 -5) scale(.85)">' + rider(c) + '</g><path d="M-14 -5 L14 -5 L10 1.6 L-10 1.6Z" fill="#6b4423" class="ink"/>' +
+        '<path d="M-12 -3 H12" stroke="#4a2f17" stroke-width=".5"/></g>';
+    },
+    zeppelin: function (c) {
+      return SKYSHADOW + '<g class="bob"><path d="M-5 -19.6 L-4.4 -7 M5 -19.6 L4.4 -7" stroke="#2a1a08" stroke-width=".5"/>' +
+        '<ellipse cx="0" cy="-27" rx="14" ry="6.6" fill="#8a2318" class="ink"/><path d="M-14 -27 H14 M-8 -32.6 Q-10.4 -27 -8 -21.4 M8 -32.6 Q10.4 -27 8 -21.4" stroke="#5a170f" stroke-width=".7" fill="none"/>' +
+        '<path d="M-13 -27 L-18.4 -32.4 L-17 -27 L-18.4 -21.6Z" fill="#5a170f"/>' +
+        '<g transform="translate(0.5 -6.6) scale(.68)">' + rider(c) + '</g><path d="M-6.4 -7 H6.4 L5.2 -2.6 H-5.2Z" fill="#6b4423" class="ink"/>' +
+        '<g class="prop"><path d="M-8 -9 V-1" stroke="#2a1a08" stroke-width="1"/></g></g>';
+    },
+    skyship: function (c) {
+      return SKYSHADOW + '<g class="bob"><path d="M-4 -19 L-3 -8 M4 -19 L3 -8" stroke="#2a1a08" stroke-width=".5"/>' +
+        '<ellipse cx="0" cy="-23.6" rx="11.4" ry="5.2" fill="#b8902f" class="ink"/><path d="M-11 -23.6 H11" stroke="#7a5c12" stroke-width=".6"/>' +
+        '<path d="M-6 -6 L-15 -11.6 L-4 -9Z M6 -6 L15 -11.6 L4 -9Z" fill="#efe6d0" class="ink"/>' +
+        '<g transform="translate(-1 -7.6) scale(.8)">' + rider(c) + '</g><path d="M-10 -7.6 L10 -7.6 L7 -2.8 L-7 -2.8Z" fill="#6b4423" class="ink"/></g>';
+    },
+    tram: function (c) {
+      return '<path d="M-15 0.2 H15" stroke="#3b2614" stroke-width="1"/><g transform="translate(0 -8.4) scale(.82)">' + rider(c) + "</g>" +
+        '<rect x="-8.6" y="-9.4" width="17.2" height="7.4" rx="1" fill="#5d5d5d" class="ink"/><path d="M-8.6 -7 H8.6" stroke="#8a8a8a" stroke-width=".6"/>' +
+        '<circle cx="-5" cy="-1.6" r="1.8" fill="#2a1a08"/><circle cx="5" cy="-1.6" r="1.8" fill="#2a1a08"/>';
+    },
+    magic: function (c) {
+      return SPRITES.foot(c) + '<g class="swirl"><circle cx="0" cy="-9" r="11" fill="none" stroke="#6a2c8a" stroke-width="1.2" stroke-dasharray="3 2"/>' +
+        '<circle cx="0" cy="-9" r="6.6" fill="none" stroke="#b07ad0" stroke-width=".9" stroke-dasharray="1 2"/></g>';
+    }
+  };
+  var MAGIC = { teleport: 1, hearth: 1, device: 1, portal: 1 };
+  function mountFor(who) { return who.speed > 7 ? (who.faction === "Horde" ? "wolf" : "horse") : "foot"; }
+  // which figure for which kind of travel
+  function spriteFor(mode, who) {
+    if (MAGIC[mode]) return "magic";
+    if (mode === "walk") return mountFor(who);
+    if (mode === "fly") return who.faction === "Horde" ? "wyvern" : "gryphon";
+    if (SPRITES[mode]) return mode;
+    return "foot";
+  }
+
+  var trav = { el: null, sprite: null, key: "", pos: [500, 500], facing: 1, who: null };
+  function setFigure(kind, who) {
+    var key = kind + "|" + who.cls + "|" + who.faction;
+    if (trav.key !== key) {
+      trav.sprite.innerHTML = SPRITES[kind](who.cls);
+      trav.key = key;
+    }
+    trav.el.style.setProperty("--cloak", who.faction === "Horde" ? "#8a2318" : "#2f4d8a");
+    trav.el.style.display = "";
+  }
+  function placeFigure(xy, face) {
+    trav.pos = xy;
+    if (face) trav.facing = face;
+    var k = 2.3 * view.w / 1000; // the figure keeps its size on screen while the map zooms
+    trav.el.setAttribute("transform", "translate(" + xy[0].toFixed(1) + " " + xy[1].toFixed(1) + ") scale(" + (k * trav.facing).toFixed(3) + " " + k.toFixed(3) + ")");
+  }
+  function idleAt(placeId, who) {
+    if (travelling) return;
+    trav.who = who;
+    trav.el.classList.remove("moving");
+    trav.el.style.opacity = "";
+    setFigure(mountFor(who), who);
+    placeFigure(proj(byId[placeId]));
+  }
+  function idleAtXY(xy) {
+    setFigure(mountFor(trav.who), trav.who);
+    placeFigure(xy);
+  }
+
+  // ---------------------------------------------------------------- the camera
+  var FULL = { x: 0, y: 0, w: 1000, h: 1060 };
+  var view = { x: 0, y: 0, w: 1000, h: 1060 }, camTarget = FULL, camRaf = null;
+  var mapSvg = document.getElementById("map");
+  var anim = null, travelling = false, maskId = 0;
+  function applyView() {
+    mapSvg.setAttribute("viewBox", view.x.toFixed(1) + " " + view.y.toFixed(1) + " " + view.w.toFixed(1) + " " + view.h.toFixed(1));
+    if (trav.el && trav.el.style.display !== "none") placeFigure(trav.pos);
+  }
+  function camTick() {
+    var t = camTarget, done = true;
+    ["x", "y", "w", "h"].forEach(function (k) {
+      var d = t[k] - view[k];
+      if (Math.abs(d) > 0.3) { view[k] += d * 0.07; done = false; } else view[k] = t[k];
+    });
+    applyView();
+    camRaf = (done && !travelling) ? null : requestAnimationFrame(camTick);
+  }
+  function camWake() { if (!camRaf && !reduceMotion) camRaf = requestAnimationFrame(camTick); }
+  function followPoint(xy) {
+    if (!document.getElementById("follow").checked || reduceMotion) { camTarget = FULL; camWake(); return; }
+    var w = 380, hgt = w * 1.06;
+    var x = Math.max(0, Math.min(1000 - w, xy[0] - w / 2)), y = Math.max(0, Math.min(1060 - hgt, xy[1] - hgt / 2));
+    camTarget = { x: x, y: y, w: w, h: hgt };
+    camWake();
+  }
+  function camHome() {
+    camTarget = FULL;
+    if (reduceMotion) { view = { x: 0, y: 0, w: 1000, h: 1060 }; applyView(); } else camWake();
+  }
+
+  // ---------------------------------------------------------------- route ink
   function clearRoute() {
-    if (anim) { cancelAnimationFrame(anim.raf); anim = null; }
+    stopTravel(false);
+    document.getElementById("clockbox").hidden = true;
     document.getElementById("route").textContent = "";
     document.getElementById("markers").textContent = "";
-    document.getElementById("token").style.display = "none";
     Array.prototype.slice.call(document.querySelectorAll(".lbl.route")).forEach(function (n) {
       n.classList.remove("route"); if (!CITIES[n.getAttribute("data-id")]) n.classList.add("hidden");
     });
@@ -617,26 +844,27 @@ footer p { margin: 2px 0; max-width: 100ch; }
     if (n) { n.classList.remove("hidden"); n.classList.add("route"); }
   }
   var BEND = { fly: 0.14, boat: 0.1, zeppelin: 0.1, skyship: 0.12, tram: 0, walk: 0, teleport: 0.05, hearth: 0.05, device: 0.05, portal: 0 };
-  // segs: [{mode, path:[ids], step}] -> SVG elements with a reveal mask each
+  // segs: [{mode, path:[ids], step, seconds, narrate}] -> inked paths, each with a reveal mask
   function buildSegments(segs) {
     var g = document.getElementById("route");
-    var defs = el("defs", {}, g);
+    var defs = g.querySelector("defs") || el("defs", {}, g);
     var out = [];
-    segs.forEach(function (s, i) {
+    segs.forEach(function (s) {
       var pts = s.path.map(function (id) { return proj(byId[id]); });
+      if (pts.length < 2 || (pts.length === 2 && pts[0][0] === pts[1][0] && pts[0][1] === pts[1][1])) return;
       var d = "";
       for (var j = 1; j < pts.length; j++) {
         var piece = arc(pts[j - 1], pts[j], BEND[s.mode] || 0);
         d += (j === 1 ? piece : piece.replace(/^M[^Q]+/, ""));
       }
-      if (pts.length < 2 || (pts.length === 2 && pts[0][0] === pts[1][0] && pts[0][1] === pts[1][1])) return;
-      var mask = el("mask", { id: "rv" + i, maskUnits: "userSpaceOnUse", x: 0, y: 0, width: 1000, height: 1060 }, defs);
+      var id = "rv" + (maskId++);
+      var mask = el("mask", { id: id, maskUnits: "userSpaceOnUse", x: 0, y: 0, width: 1000, height: 1060 }, defs);
       var mp = el("path", { d: d, stroke: "#fff", "stroke-width": 10, fill: "none", "stroke-linecap": "round" }, mask);
-      var vis = el("path", { d: d, "class": "seg " + s.mode, mask: "url(#rv" + i + ")", "data-step": s.step }, g);
+      var vis = el("path", { d: d, "class": "seg " + s.mode, mask: "url(#" + id + ")", "data-step": s.step }, g);
       var L = vis.getTotalLength() || 1;
       mp.setAttribute("stroke-dasharray", L + " " + (L + 20));
       mp.setAttribute("stroke-dashoffset", L);
-      out.push({ vis: vis, mask: mp, L: L, s: s, end: pts[pts.length - 1] });
+      out.push({ vis: vis, mask: mp, L: L, s: s, start: pts[0], end: pts[pts.length - 1] });
     });
     return out;
   }
@@ -644,35 +872,123 @@ footer p { margin: 2px 0; max-width: 100ch; }
     var g = document.getElementById("route");
     for (var r = 5; r <= 11; r += 6) el("circle", { cx: xy[0], cy: xy[1], r: r, "class": "spark" }, g);
   }
-  function animate(parts, totalMs, onDone) {
-    var token = document.getElementById("token");
-    if (reduceMotion || !parts.length) {
-      parts.forEach(function (p) { p.mask.setAttribute("stroke-dashoffset", 0); if (p.s.magic) sparkle(p.end); });
-      if (onDone) onDone();
-      return;
-    }
-    var weights = parts.map(function (p) { return Math.max(0.35, Math.sqrt(p.s.seconds || 30)); });
-    var sum = weights.reduce(function (a, b) { return a + b; }, 0);
-    var durs = weights.map(function (w) { return totalMs * w / sum; });
-    token.style.display = "";
-    var i = 0, t0 = null;
-    anim = {};
-    function frame(ts) {
-      if (t0 === null) t0 = ts;
-      var p = parts[i], f = Math.min(1, (ts - t0) / durs[i]);
-      p.mask.setAttribute("stroke-dashoffset", p.L * (1 - f));
-      var pt = p.vis.getPointAtLength(p.L * f);
-      token.setAttribute("transform", "translate(" + pt.x.toFixed(1) + " " + pt.y.toFixed(1) + ")");
-      if (f >= 1) {
-        if (p.s.magic) sparkle(p.end);
-        i++; t0 = ts;
-        if (i >= parts.length) { anim = null; if (onDone) onDone(); return; }
-      }
-      anim.raf = requestAnimationFrame(frame);
-    }
-    anim.raf = requestAnimationFrame(frame);
+
+  // ---------------------------------------------------------------- fast travel
+  // items: [{seg: part} | {say: html, quiet: bool, work: seconds}], played in order.
+  var clockEl = document.getElementById("clock"), clockBox = document.getElementById("clockbox");
+  function legDuration(p) {
+    if (MAGIC[p.s.mode]) return 1100;
+    return Math.max(600, Math.min(3200, 500 + 760 * Math.sqrt((p.s.seconds || 30) / 60)));
   }
-  var MAGIC = { teleport: 1, hearth: 1, device: 1, portal: 1 };
+  function showClock(sec) { clockEl.textContent = fmt(sec); }
+  function endTravel(a) {
+    travelling = false;
+    trav.el.classList.remove("moving");
+    trav.el.style.opacity = "";
+    idleAtXY(a.lastPos);
+    camHome();
+    document.getElementById("skip").hidden = true;
+    if (a.onDone) a.onDone();
+  }
+  // finish = true: jump to the end (Skip); false: abandon (a new route replaces it)
+  function stopTravel(finish) {
+    if (!anim) return;
+    var a = anim;
+    anim = null;
+    cancelAnimationFrame(a.raf);
+    if (!finish) { travelling = false; trav.el.classList.remove("moving"); trav.el.style.opacity = ""; camHome(); return; }
+    for (var j = a.i; j < a.items.length; j++) {
+      var it = a.items[j];
+      if (it.seg) {
+        it.seg.mask.setAttribute("stroke-dashoffset", 0);
+        if (MAGIC[it.seg.s.mode]) sparkle(it.seg.end);
+        a.clock += it.seg.s.seconds || 0;
+        a.lastPos = it.seg.end;
+      } else if (!(j === a.i && a.fired)) {
+        if (it.say) say(it.say, it.quiet);
+        a.clock += it.work || 0;
+      }
+    }
+    showClock(a.clock);
+    endTravel(a);
+  }
+  function travel(items, who, opts) {
+    opts = opts || {};
+    stopTravel(false);
+    trav.who = who;
+    clockBox.hidden = false;
+    document.getElementById("skip").hidden = false;
+    var total = 0;
+    items.forEach(function (it) { it.dur = it.seg ? legDuration(it.seg) : (it.say ? 650 : 0); total += it.dur; });
+    var pace = opts.maxMs ? Math.min(1, opts.maxMs / Math.max(1, total)) : 1;
+    items.forEach(function (it) { it.dur *= pace; });
+    var a = { items: items, i: 0, t0: null, clock: 0, fired: false, onDone: opts.onDone, lastPos: trav.pos };
+    anim = a;
+    showClock(0);
+    if (reduceMotion || !items.length) { stopTravel(true); return; }
+    travelling = true;
+    trav.el.classList.add("moving");
+    function frame(ts) {
+      if (anim !== a) return;
+      var it = a.items[a.i];
+      if (a.t0 === null) {
+        a.t0 = ts; a.fired = false;
+        if (it.seg) {
+          setFigure(spriteFor(it.seg.s.mode, who), who);
+          if (it.seg.s.narrate) say(it.seg.s.narrate, true);
+        }
+      }
+      var f = it.dur > 0 ? Math.min(1, (ts - a.t0) / it.dur) : 1;
+      if (it.seg) {
+        var p = it.seg;
+        p.mask.setAttribute("stroke-dashoffset", p.L * (1 - f));
+        if (MAGIC[p.s.mode]) {
+          // vanish at the start, reappear at the destination
+          trav.el.style.opacity = f < 0.5 ? String(1 - f * 2) : String(f * 2 - 1);
+          placeFigure(f < 0.5 ? p.start : p.end);
+          followPoint(f < 0.5 ? p.start : p.end);
+        } else {
+          var pt = p.vis.getPointAtLength(p.L * f);
+          var dx = pt.x - trav.pos[0];
+          placeFigure([pt.x, pt.y], Math.abs(dx) > 0.02 ? (dx < 0 ? -1 : 1) : 0);
+          followPoint([pt.x, pt.y]);
+        }
+        showClock(a.clock + (p.s.seconds || 0) * f);
+      } else if (!a.fired) {
+        a.fired = true;
+        if (it.say) say(it.say, it.quiet);
+        a.clock += it.work || 0;
+        showClock(a.clock);
+      }
+      if (f >= 1) {
+        if (it.seg) {
+          a.clock += it.seg.s.seconds || 0;
+          trav.el.style.opacity = "";
+          if (MAGIC[it.seg.s.mode]) sparkle(it.seg.end);
+          a.lastPos = it.seg.end;
+        }
+        a.i++; a.t0 = null;
+        if (a.i >= a.items.length) { anim = null; endTravel(a); return; }
+      }
+      a.raf = requestAnimationFrame(frame);
+    }
+    a.raf = requestAnimationFrame(frame);
+    camWake();
+  }
+  function narration(t, who) {
+    var to = esc(byId[t.to].name), from = esc(byId[t.from].name);
+    switch (t.mode) {
+      case "fly": return "Flying from " + from + " to " + to + " on a " + (who.faction === "Horde" ? "wind rider" : "gryphon") + ".";
+      case "boat": return "Sailing from " + from + " to " + to + ".";
+      case "zeppelin": return "Boarding the zeppelin to " + to + ".";
+      case "skyship": return "Boarding the skyship to " + to + ".";
+      case "tram": return "Taking the Deeprun Tram to " + to + ".";
+      case "portal": return "Stepping through the portal to " + to + ".";
+      case "hearth": return "Using the hearthstone. Home to " + to + ".";
+      case "teleport": case "device": return esc(t.name || "Teleport") + ". Off to " + to + ".";
+      default: return (who.speed > 7 ? "Riding" : "Walking") + " to " + to + ".";
+    }
+  }
 
   function drawMarkers(steps) {
     var g = document.getElementById("markers");
@@ -745,6 +1061,7 @@ footer p { margin: 2px 0; max-width: 100ch; }
       document.getElementById("cstart").value = DEFAULT_START[f];
       drawNetwork(f, document.getElementById("ccls").value, false);
       clearRoute();
+      refreshIdle();
       return;
     }
     document.getElementById("start").value = DEFAULT_START[f];
@@ -752,10 +1069,29 @@ footer p { margin: 2px 0; max-width: 100ch; }
     fillQuests();
     refreshNetwork();
     clearRoute();
-    document.getElementById("itinerary").innerHTML = '<p class="empty">Tick some quests and plan the journey. The route will be inked onto the map.</p>';
+    refreshIdle();
+    document.getElementById("itinerary").innerHTML = '<p class="empty">Tick some quests and plan the journey. The route will be inked onto the map. You can also click any place on the map to travel there.</p>';
   }
   function refreshNetwork() {
     drawNetwork(state.faction, document.getElementById("cls").value, document.getElementById("beta").checked);
+  }
+
+  function journeyWho() {
+    return { faction: state.faction, cls: document.getElementById("cls").value, speed: parseFloat(document.getElementById("mount").value) };
+  }
+  function coverWho() { return { faction: state.cfaction, cls: document.getElementById("ccls").value, speed: 11.2 }; }
+  function profileQuery() {
+    return "faction=" + state.faction +
+      "&class=" + document.getElementById("cls").value +
+      "&hearth=" + document.getElementById("hearth").value +
+      "&speed=" + document.getElementById("mount").value +
+      "&engineer=" + (document.getElementById("engineer").checked ? 1 : 0) +
+      "&flier=" + (document.getElementById("flier").checked ? 1 : 0) +
+      "&beta=" + (document.getElementById("beta").checked ? 1 : 0);
+  }
+  function refreshIdle() {
+    if (document.getElementById("panel-journey").hidden) idleAt(document.getElementById("cstart").value, coverWho());
+    else idleAt(document.getElementById("start").value, journeyWho());
   }
 
   function planQuery() {
@@ -794,25 +1130,31 @@ footer p { margin: 2px 0; max-width: 100ch; }
 
   function renderPlan(r) {
     clearRoute();
-    var segs = [], byMode = {};
+    var byMode = {}, items = [], who = journeyWho();
+    idleAt(document.getElementById("start").value, who);
     r.steps.forEach(function (st, k) {
-      st.travel.forEach(function (t) {
+      var segs = st.travel.map(function (t) {
         byMode[t.mode] = (byMode[t.mode] || 0) + t.seconds;
-        segs.push({ mode: t.mode, path: t.path, step: k, seconds: t.seconds, magic: !!MAGIC[t.mode] });
         t.path.forEach(showLabel);
+        return { mode: t.mode, path: t.path, step: k, seconds: t.seconds,
+                 narrate: t.mode !== "walk" ? narration(t, who) : null };
       });
+      buildSegments(segs).forEach(function (p) { items.push({ seg: p }); });
+      var msg = st.kind === "accept" ? "Quest accepted: " + esc(st.name)
+              : st.kind === "turnin" ? esc(st.name) + " completed."
+              : esc(st.name) + ": objective complete.";
+      items.push({ say: msg, work: st.work });
     });
-    var parts = buildSegments(segs);
     drawMarkers(r.steps);
-    animate(parts, Math.min(9000, 1600 + parts.length * 260));
+    travel(items, who, { maxMs: 60000 });
 
-    var travel = 0, work = 0;
-    r.steps.forEach(function (st) { travel += st.seconds; work += st.work; });
+    var road = 0, work = 0;
+    r.steps.forEach(function (st) { road += st.seconds; work += st.work; });
     var box = document.getElementById("itinerary");
     box.textContent = "";
     var sum = h("p", { "class": "summary" });
     sum.innerHTML = "<strong>" + mins(r.seconds) + " minutes</strong> for " + r.stops + " stops: " +
-      mins(travel) + " on the road and " + mins(work) + " doing the quests.";
+      mins(road) + " on the road and " + mins(work) + " doing the quests.";
     box.appendChild(sum);
     var ol = h("ol", { "class": "itin" });
     r.steps.forEach(function (st, k) {
@@ -916,8 +1258,98 @@ footer p { margin: 2px 0; max-width: 100ch; }
     });
     var parts = buildSegments(segs);
     parts.forEach(function (p) { p.vis.style.opacity = which === "atlas" ? ".55" : ""; });
-    animate(parts, Math.min(14000, 2500 + parts.length * 18));
+    var who = coverWho();
+    idleAt(document.getElementById("cstart").value, who);
+    travel(parts.map(function (p) { return { seg: p }; }), who, { maxMs: which === "atlas" ? 45000 : 30000 });
   }
+
+  // Developer view: AtlasRoute.html#sprites draws every figure for every class.
+  function spriteSheet() {
+    var kinds = ["foot", "horse", "wolf", "gryphon", "wyvern", "boat", "zeppelin", "skyship", "tram", "magic"];
+    var classes = ["", "MAGE", "DRUID", "SHAMAN"];
+    var box = h("div", { style: "position:fixed;inset:0;z-index:20;background:#ead8ab;overflow:auto" });
+    var svg = document.createElementNS(SVGNS, "svg");
+    svg.setAttribute("viewBox", "0 0 " + (kinds.length * 44 + 10) + " " + (classes.length * 2 * 40 + 10));
+    svg.setAttribute("style", "width:100%;height:auto;display:block");
+    classes.forEach(function (c, ci) {
+      ["Alliance", "Horde"].forEach(function (f, fi) {
+        kinds.forEach(function (k, ki) {
+          var g = el("g", { transform: "translate(" + (ki * 44 + 26) + " " + ((ci * 2 + fi) * 40 + 40) + ")" }, svg);
+          g.style.setProperty("--cloak", f === "Horde" ? "#8a2318" : "#2f4d8a");
+          g.innerHTML = SPRITES[k](c);
+        });
+      });
+    });
+    svg.setAttribute("class", "figure moving");
+    box.appendChild(svg);
+    document.body.appendChild(box);
+  }
+
+  // ---------------------------------------------------------------- click to travel
+  var card = null;
+  function closeCard() { if (card) { card.remove(); card = null; } }
+  function offerTravel(dest, hitEl) {
+    closeCard();
+    if (document.getElementById("panel-journey").hidden) {
+      document.getElementById("cstart").value = dest;
+      idleAt(dest, coverWho());
+      return;
+    }
+    var from = document.getElementById("start").value;
+    if (from === dest) { say("You are already in " + esc(byId[dest].name) + ".", true); return; }
+    call("route", profileQuery() + "&from=" + from + "&to=" + dest).then(function (r) {
+      var wrap = document.querySelector(".mapwrap");
+      var box = wrap.getBoundingClientRect(), at = hitEl.getBoundingClientRect();
+      card = h("div", { "class": "travelcard", role: "dialog", "aria-label": "Travel to " + byId[dest].name });
+      var html = "<h3>Travel to " + esc(byId[dest].name) + "?</h3>";
+      if (r.error) html += "<p>" + esc(r.error) + "</p>";
+      else {
+        html += "<ul>" + r.travel.map(function (t) {
+          return "<li>" + glyph(t.mode) + "<span>" + esc(t.name || MODE[t.mode] || t.mode) + " to " + esc(byId[t.to].name) + "</span><span>" + fmt(t.seconds) + "</span></li>";
+        }).join("") + "</ul><p>About " + fmt(r.seconds) + " from " + esc(byId[from].name) + ".</p>";
+      }
+      html += '<div class="btns">' + (r.error ? "" : '<button class="yes" type="button">Travel</button>') + '<button class="no" type="button">Stay here</button></div>';
+      card.innerHTML = html;
+      wrap.appendChild(card);
+      var left = at.left - box.left + 14, top = at.top - box.top - 10;
+      left = Math.max(8, Math.min(box.width - card.offsetWidth - 8, left));
+      top = Math.max(8, Math.min(box.height - card.offsetHeight - 8, top));
+      card.style.left = left + "px"; card.style.top = top + "px";
+      card.querySelector(".no").addEventListener("click", function () { closeCard(); hitEl.focus(); });
+      var yes = card.querySelector(".yes");
+      if (yes) {
+        yes.addEventListener("click", function () { closeCard(); goTravel(r, from, dest); });
+        yes.focus();
+      } else card.querySelector(".no").focus();
+    }).catch(function (e) { say("The planner stopped: " + esc(e.message)); });
+  }
+  function goTravel(r, from, dest) {
+    clearRoute();
+    var who = journeyWho();
+    idleAt(from, who);
+    var segs = r.travel.map(function (t) {
+      t.path.forEach(showLabel);
+      return { mode: t.mode, path: t.path, step: 0, seconds: t.seconds, narrate: narration(t, who) };
+    });
+    var items = buildSegments(segs).map(function (p) { return { seg: p }; });
+    items.push({ say: "You arrive in " + esc(byId[dest].name) + ".", quiet: true });
+    showLabel(dest);
+    travel(items, who, {
+      onDone: function () {
+        document.getElementById("start").value = dest;
+        var modes = r.travel.map(function (t) { return t.mode; });
+        if (modes.indexOf("hearth") >= 0) {
+          document.getElementById("hearth").value = "";
+          say("Your hearthstone is on cooldown.");
+        }
+        if (modes.indexOf("device") >= 0) {
+          document.getElementById("engineer").checked = false;
+          say("The engineering trinkets are recharging.");
+        }
+      }
+    });
+  }
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeCard(); });
 
   // ---------------------------------------------------------------- wiring
   function wire() {
@@ -928,7 +1360,11 @@ footer p { margin: 2px 0; max-width: 100ch; }
       b.addEventListener("click", function () { setFaction(b.getAttribute("data-faction"), "cover"); });
     });
     ["cls", "beta"].forEach(function (id) { document.getElementById(id).addEventListener("change", refreshNetwork); });
-    document.getElementById("ccls").addEventListener("change", function () { drawNetwork(state.cfaction, this.value, false); });
+    ["cls", "mount", "start"].forEach(function (id) { document.getElementById(id).addEventListener("change", refreshIdle); });
+    document.getElementById("ccls").addEventListener("change", function () { drawNetwork(state.cfaction, this.value, false); refreshIdle(); });
+    document.getElementById("cstart").addEventListener("change", refreshIdle);
+    document.getElementById("skip").addEventListener("click", function () { stopTravel(true); });
+    document.getElementById("follow").addEventListener("change", function () { if (!this.checked) camHome(); });
     document.getElementById("plan").addEventListener("click", plan);
     document.getElementById("cover").addEventListener("click", cover);
     var tabs = [["tab-journey", "panel-journey"], ["tab-cover", "panel-cover"]];
@@ -940,8 +1376,10 @@ footer p { margin: 2px 0; max-width: 100ch; }
           document.getElementById(u[1]).hidden = !on;
         });
         clearRoute();
+        closeCard();
         if (t[0] === "tab-cover") drawNetwork(state.cfaction, document.getElementById("ccls").value, false);
         else refreshNetwork();
+        refreshIdle();
       });
     });
   }
@@ -959,8 +1397,12 @@ footer p { margin: 2px 0; max-width: 100ch; }
     fillPlaces(document.getElementById("cstart"), DEFAULT_START.Alliance);
     fillQuests();
     refreshNetwork();
+    trav.el = document.getElementById("traveller");
+    trav.sprite = document.getElementById("trav-sprite");
     wire();
+    refreshIdle();
     say("Welcome, traveller. The map shows every flight path your faction can use.", true);
+    if (location.hash === "#sprites") spriteSheet();
     setTimeout(function () { document.getElementById("loading").classList.add("gone"); }, reduceMotion ? 0 : 500);
   }).catch(function (e) {
     setLoad(100, "The Lua engine could not start: " + e.message + ". The page fetches the wasmoon VM from cdn.jsdelivr.net, so it needs an internet connection.");

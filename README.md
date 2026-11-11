@@ -94,6 +94,9 @@ Alt sınır, gerekli kenarların ağırlıkları toplamıdır. Ağırlıklı Atl
 - Sayfadaki bütün sayılar eklentinin kendi Lua kodundan gelir. `core/` ve `data/` dosyaları, köprü `web/bridge.lua` ile birlikte sayfanın içine gömülür ve tarayıcıda wasmoon (Lua 5.4, WebAssembly) ile, bir Web Worker'da çalışır. Lua 5.4'te `bit` kütüphanesi olmadığı için sayfa onu `&`, `|`, `<<` ile tanımlar; çıktılar LuaJIT'teki komut satırı demosuyla aynıdır.
 - **Plan a journey:** fraksiyon, sınıf, başlangıç, hearthstone, binek, mühendislik aletleri, Frequent Flier ve beta yolları seçilir; görevler işaretlenir. Rota haritaya bacak bacak mürekkeple çizilir, her kip kendi çizgisiyle.
 - **Ride every flight path:** Atlas (yazıldığı gibi), ağırlıklı Atlas ve Kırsal Postacı aynı haritada karşılaştırılır ve çizilir.
+- **Yolcu:** haritada sınıfı gösteren küçük bir figür yolculuğu yapar (savaşçı miğfer ve kılıç, büyücü sivri şapka ve asa, druid yaprak taç, şaman boynuzlu miğfer ve totem; pelerin fraksiyon renginde). Her yolculuk biçiminin kendi figürü var: yaya, at (Horde'da kurt), uçuşta grifon (Horde'da wyvern), gemi, zeplin, skyship, tram vagonu; ışınlanma ve hearthstone'da figür bir girdapla kaybolup varış yerinde belirir. Kamera figürü izler, kum saati yolculuk süresini sayar, *Skip* sona atlar, görev olayları ("Quest accepted: …") sohbet penceresine düşer.
+- **Tıkla ve yolculuk et:** haritada bir yere tıklanınca rota kartı açılır; *Travel* ile figür oraya gider, bulunulan yer güncellenir, kullanılan hearthstone bekleme süresine girer.
+- `AtlasRoute.html#sprites` bütün figürleri bütün sınıflar ve iki fraksiyon için bir sayfada gösterir (çizimleri denetlemek için).
 
 Kaynak `web/template.html`'dir; değiştirdikten sonra sayfayı yeniden üretin:
 
