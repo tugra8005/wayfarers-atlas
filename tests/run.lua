@@ -170,8 +170,8 @@ end)
 test("Factions only use their own flight masters and transports", function()
   for _, prof in ipairs({ A, H }) do
     for _, pair in ipairs({ { "stromgarde", "thunderbluff" }, { "feathermoon", "undercity" }, { "southshore", "gadgetzan" } }) do
-      local dist, prev = ns.Router.search(world, prof, world:index(pair[1]), true)
-      local _, state = ns.Router.best(dist, world:index(pair[2]))
+      local dist, prev, ctx = ns.Router.search(world, prof, world:index(pair[1]), true)
+      local _, state = ns.Router.best(dist, ctx, world:index(pair[2]))
       local v = state
       while prev[v] do
         local e = prev[v].edge
@@ -240,6 +240,103 @@ test("Map coverage walks are valid and cover every flight link", function()
   end
 end)
 
+local function pick(list, ids)
+  local r = {}
+  for _, id in ipairs(ids) do for _, q in ipairs(list) do if q.id == id then r[#r + 1] = q end end end
+  return r
+end
+
+-- Forever additions ----------------------------------------------------------------------
+local function modes(legs) local m = {}; for _, l in ipairs(legs) do m[#m + 1] = l.mode end; return table.concat(m, "+") end
+local function uses(legs, mode, toName)
+  for _, l in ipairs(legs) do
+    if l.mode == mode and (not toName or world.nodes[l.to].name == toName) then return true end
+  end
+  return false
+end
+
+test("Skyborne start: both factions reach Dalaran, only Horde takes the Skywatcher skyship", function()
+  local tA, lA = ns.Router.route(world, { faction = "Alliance", speed = 7 }, "valanaar", "stormwind")
+  truthy(tA and uses(lA, "skyship", "Dalaran"), "Alliance from Valanaar: " .. modes(lA or {}))
+  local _, lH = ns.Router.route(world, { faction = "Horde", speed = 7 }, "valanaar", "thunderbluff")
+  truthy(uses(lH, "skyship", "Skywatcher Plateau"), "Horde from Valanaar: " .. modes(lH))
+  local _, lA2 = ns.Router.route(world, { faction = "Alliance", speed = 7 }, "valanaar", "thunderbluff")
+  truthy(not uses(lA2, "skyship", "Skywatcher Plateau"), "Alliance used the Horde skyship")
+end)
+
+test("Beta-only routes are used only when asked for", function()
+  local base = { faction = "Alliance", speed = 11.2 }
+  local beta = { faction = "Alliance", speed = 11.2, unconfirmed = true }
+  local t1, l1 = ns.Router.route(world, base, "dalaran", "stormwind")
+  local t2, l2 = ns.Router.route(world, beta, "dalaran", "stormwind")
+  truthy(not uses(l1, "portal", "Stormwind City"), "portal used without the beta flag")
+  truthy(uses(l2, "portal", "Stormwind City"), "portal not used with the beta flag: " .. modes(l2))
+  truthy(t2 < t1)
+  local mage = { faction = "Horde", class = "MAGE", speed = 11.2 }
+  local _, lm = ns.Router.route(world, mage, "orgrimmar", "dalaran")
+  truthy(not uses(lm, "teleport", "Dalaran"), "beta Teleport: Dalaran used")
+end)
+
+test("Riverglades flight masters, Powderfuse boat and Menethil loop", function()
+  local _, l = ns.Router.route(world, A, "farholde", "thelsamar")
+  eq(modes(l), "fly")
+  local _, lh = ns.Router.route(world, H, "rogmar", "kargath")
+  eq(modes(lh), "fly")
+  local _, lb = ns.Router.route(world, { faction = "Horde", speed = 11.2 }, "steamwheedle", "powderfuse")
+  eq(modes(lb), "boat")
+  -- the Menethil loop is one-way: Auberdine -> Menethil is direct, Menethil -> Auberdine goes round
+  local back = ns.Router.route(world, A, "auberdine", "menethil", false)
+  local there = ns.Router.route(world, A, "menethil", "auberdine", false)
+  truthy(there > back, "loop should make Menethil -> Auberdine slower")
+end)
+
+test("Walled-off zones are entered only through their pass", function()
+  local function regionOf(n) return n.region or n.continent end
+  local passes = { ["taintedfoothills:everlook"] = true, ["everlook:taintedfoothills"] = true,
+                   ["nighthaven:everlook"] = true, ["everlook:nighthaven"] = true,
+                   ["shendralas:shadowprey"] = true, ["shadowprey:shendralas"] = true }
+  for i = 1, #world.nodes do
+    for _, e in ipairs(world.adj[i]) do
+      local a, b = world.nodes[e.from], world.nodes[e.to]
+      if e.mode == "walk" and regionOf(a) ~= regionOf(b) and a.continent == b.continent then
+        local inner = { HYJAL = 1, MOONGLADE = 1, SHENDRALAS = 1 }
+        if inner[regionOf(a)] or inner[regionOf(b)] then
+          truthy(passes[a.id .. ":" .. b.id], "unexpected walk " .. a.id .. " -> " .. b.id)
+        end
+      end
+    end
+  end
+end)
+
+test("Druids: Teleport: Moonglade and the druid-only flight master", function()
+  local tD, lD = ns.Router.route(world, { faction = "Horde", class = "DRUID", speed = 11.2 }, "gadgetzan", "nighthaven")
+  local tW = ns.Router.route(world, { faction = "Horde", class = "WARRIOR", speed = 11.2 }, "gadgetzan", "nighthaven")
+  truthy(uses(lD, "teleport", "Nighthaven"))
+  truthy(tD < tW)
+  local _, lW = ns.Router.route(world, { faction = "Alliance", class = "WARRIOR", speed = 11.2 }, "ruttheran", "nighthaven")
+  truthy(not uses(lW, "fly", "Nighthaven"), "non-druid landed at the druid flight master: " .. modes(lW))
+end)
+
+test("Several one-use teleports: each spent at most once, devices need the item", function()
+  local shaman = { faction = "Horde", class = "SHAMAN", speed = 11.2, hearth = "orgrimmar",
+                   items = { [18984] = true, [18986] = true } }
+  local ctx = ns.Router.context(world, shaman)
+  eq(#ctx.L, 4, "hearth, Astral Recall, two devices")
+  eq(#ns.Router.context(world, { faction = "Horde", class = "SHAMAN", hearth = "orgrimmar" }).L, 2)
+  local _, legs = ns.Router.route(world, shaman, "stromgarde", "gadgetzan")
+  truthy(uses(legs, "device", "Gadgetzan"), "transporter not used: " .. modes(legs))
+  local plan = ns.Tour.plan(world, shaman, "undercity", pick(ns.QuestData.horde, { "tigers", "feralas", "razorhill", "bluff" }))
+  local count = {}
+  for _, leg in ipairs(plan.legs) do
+    for _, t in ipairs(leg.travel) do
+      if t.mode == "hearth" or t.mode == "device" or (t.name == "Astral Recall") then
+        count[t.name] = (count[t.name] or 0) + 1
+      end
+    end
+  end
+  for name, c in pairs(count) do truthy(c == 1, name .. " used " .. c .. " times") end
+end)
+
 -- Tour ------------------------------------------------------------------------------------
 local function permutations(n, fn)
   local a, used = {}, {}
@@ -252,11 +349,6 @@ local function permutations(n, fn)
   rec(1)
 end
 
-local function pick(list, ids)
-  local r = {}
-  for _, id in ipairs(ids) do for _, q in ipairs(list) do if q.id == id then r[#r + 1] = q end end end
-  return r
-end
 
 test("Exact tour equals brute force over all orders (with precedence and hearthstone)", function()
   local cases = {
@@ -264,6 +356,8 @@ test("Exact tour equals brute force over all orders (with precedence and hearths
     { A, "stormwind", pick(ns.QuestData.alliance, { "nightwatch", "letter", "astranaar" }) },
     { H, "orgrimmar", pick(ns.QuestData.horde, { "hammerfall", "razorhill", "bluff" }) },
     { { faction = "Horde", class = "MAGE", speed = 7 }, "crossroads", pick(ns.QuestData.horde, { "tigers", "bluff", "hammerfall" }) },
+    { { faction = "Horde", class = "SHAMAN", speed = 11.2, hearth = "orgrimmar", items = { [18984] = true, [18986] = true } },
+      "undercity", pick(ns.QuestData.horde, { "tigers", "feralas", "bluff" }) },
   }
   for ci, c in ipairs(cases) do
     local plan = ns.Tour.plan(world, c[1], c[2], c[3], { method = "exact" })

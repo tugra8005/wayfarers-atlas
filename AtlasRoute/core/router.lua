@@ -1,9 +1,10 @@
--- Fastest route between two places: Dijkstra over (node, hearthstone available?) states.
+-- Fastest route between two places: Dijkstra over (node, set of one-use teleports spent).
 --
--- The hearthstone is a teleport you can use once per plan (its cooldown, 60 min in Classic,
--- is longer than most legs). Carrying "is it still available" in the state makes the search
--- exact: a route may use it on the leg where it saves the most, and the tour planner can ask
--- for both "arrive with it unused" and "arrive having used it".
+-- Some teleports have cooldowns longer than most plans, so each is treated as usable once:
+-- the hearthstone, a shaman's Astral Recall, engineering devices. With K of them the state
+-- is (node, spent-mask), 2^K states per node. Carrying the mask makes the search exact: a
+-- route spends a teleport only where it pays, and the tour planner can read "fastest i -> j
+-- that spends exactly the set C" straight from one search per origin.
 local _, ns = ...
 local Heap = ns.Heap
 
@@ -11,32 +12,62 @@ local Router = {}
 
 local INF = math.huge
 
--- State id: node index * 2 + h, h = 1 while the hearthstone is still available.
-local function sid(node, h) return node * 2 + h end
+-- The one-use teleports this character has, in a fixed order (bit k-1 = item k).
+function Router.limited(world, profile)
+  local list = {}
+  if profile.hearth then
+    list[#list + 1] = { mode = "hearth", name = "Hearthstone", to = world:index(profile.hearth),
+                        cost = world.CAST_TIME }
+  end
+  for _, t in ipairs(world.teleports) do
+    if t.limited and world:allowed(t, profile) then
+      local to = t.to
+      if t.toBind then to = profile.hearth and world:index(profile.hearth) end
+      if to then
+        list[#list + 1] = { mode = t.mode, name = t.name, to = to, cost = t.cost }
+      end
+    end
+  end
+  return list
+end
 
--- Single-source search. Returns dist[state], prev[state] = {state, edge}.
-function Router.search(world, profile, src, hearthAvail)
+-- ctx: what the state numbers mean for this character.
+function Router.context(world, profile)
+  local L = Router.limited(world, profile)
+  local S = 1
+  for _ = 1, #L do S = S * 2 end
+  return { L = L, S = S }
+end
+
+local function sid(ctx, node, used) return node * ctx.S + used end
+local function decode(ctx, s) return math.floor(s / ctx.S), s % ctx.S end
+Router.sid, Router.decode = sid, decode
+
+local function hasBit(mask, k) return math.floor(mask / 2 ^ (k - 1)) % 2 == 1 end
+Router.hasBit = hasBit
+
+-- Single-source search. allowLimited=false forbids every one-use teleport.
+-- Returns dist[state], prev[state] = {state, edge}, ctx.
+function Router.search(world, profile, src, allowLimited, ctx)
+  ctx = ctx or Router.context(world, profile)
   local dist, prev = {}, {}
   local heap = Heap.new()
-  local h0 = (hearthAvail and profile.hearth) and 1 or 0
-  local s = sid(src, h0)
+  local s = sid(ctx, src, 0)
   dist[s] = 0
   heap:push(0, s)
 
   local tps = {}
   for _, t in ipairs(world.teleports) do
-    if world:allowed(t, profile) then tps[#tps + 1] = t end
+    if not t.limited and world:allowed(t, profile) then tps[#tps + 1] = t end
   end
-  local hearthIdx = profile.hearth and world:index(profile.hearth)
-  local hearthEdge = hearthIdx and { mode = "hearth", to = hearthIdx, cost = world.CAST_TIME,
-                                     name = "Hearthstone" }
+  local L = (allowLimited ~= false) and ctx.L or {}
 
   while not heap:empty() do
     local d, u = heap:pop()
     if d <= (dist[u] or INF) then
-      local node, h = math.floor(u / 2), u % 2
-      local function relax(to, th, cost, e)
-        local v = sid(to, th)
+      local node, used = decode(ctx, u)
+      local function relax(to, nused, cost, e)
+        local v = sid(ctx, to, nused)
         local nd = d + cost
         if nd < (dist[v] or INF) then
           dist[v] = nd
@@ -46,27 +77,29 @@ function Router.search(world, profile, src, hearthAvail)
       end
       for _, e in ipairs(world.adj[node]) do
         if world:allowed(e, profile) then
-          relax(e.to, h, world:edgeCost(e, profile), e)
+          relax(e.to, used, world:edgeCost(e, profile), e)
         end
       end
       if world.nodes[node].kind == "ground" then -- no casting while on a flight
-        for _, t in ipairs(tps) do relax(t.to, h, t.cost, t) end
-        if h == 1 and hearthEdge then relax(hearthIdx, 0, hearthEdge.cost, hearthEdge) end
+        for _, t in ipairs(tps) do relax(t.to, used, t.cost, t) end
+        for k, t in ipairs(L) do
+          if not hasBit(used, k) then relax(t.to, used + 2 ^ (k - 1), t.cost, t) end
+        end
       end
     end
   end
-  return dist, prev
+  return dist, prev, ctx
 end
 
 -- Rebuild the legs from the search result, with each leg's time taken from the distance
 -- labels. Consecutive walks merge into one walk; board + fly hops + land become one flight
 -- (from the flight master's ground node to the landing ground node).
-function Router.legs(world, dist, prev, dstState)
+function Router.legs(world, dist, prev, dstState, ctx)
   local steps = {}
   local v = dstState
   while prev[v] do
     local p = prev[v]
-    steps[#steps + 1] = { from = math.floor(p.state / 2), to = math.floor(v / 2),
+    steps[#steps + 1] = { from = decode(ctx, p.state), to = decode(ctx, v),
                           edge = p.edge, seconds = dist[v] - dist[p.state] }
     v = p.state
   end
@@ -90,22 +123,25 @@ function Router.legs(world, dist, prev, dstState)
   return legs
 end
 
--- Best arrival state at node dst: returns (seconds, state).
-function Router.best(dist, dst)
-  local a, b = dist[sid(dst, 1)] or INF, dist[sid(dst, 0)] or INF
-  if a <= b then return a, (a < INF) and sid(dst, 1) or nil end
-  return b, sid(dst, 0)
+-- Best arrival state at node dst over every spent-mask: returns (seconds, state).
+function Router.best(dist, ctx, dst)
+  local best, state = INF, nil
+  for used = 0, ctx.S - 1 do
+    local s = sid(ctx, dst, used)
+    local d = dist[s]
+    if d and d < best then best, state = d, s end
+  end
+  return best, state
 end
 
 -- Convenience: fastest route from place id a to place id b.
 -- Returns total seconds and a list of legs {mode, from, to, seconds}.
-function Router.route(world, profile, a, b, hearthAvail)
+function Router.route(world, profile, a, b, allowLimited)
   local src, dst = world:index(a), world:index(b)
-  local dist, prev = Router.search(world, profile, src, hearthAvail)
-  local best, state = Router.best(dist, dst)
+  local dist, prev, ctx = Router.search(world, profile, src, allowLimited)
+  local best, state = Router.best(dist, ctx, dst)
   if not state then return nil end
-  return best, Router.legs(world, dist, prev, state)
+  return best, Router.legs(world, dist, prev, state, ctx)
 end
 
-Router.sid = sid
 ns.Router = Router

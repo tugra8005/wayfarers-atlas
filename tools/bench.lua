@@ -116,7 +116,7 @@ if which == "tour" or which == "all" then
                    class = (math.random() < 0.3) and "MAGE" or nil }
     local start = L.starts[math.random(#L.starts)]
     local n = #ns.Tour.stops(world, pool)
-    if n >= 3 and n <= ns.Tour.EXACT_LIMIT then
+    if n >= 3 and ns.Tour.exactAffordable(n, ns.Router.context(world, prof).S) then
       local t = clock(); local e = ns.Tour.plan(world, prof, start, pool, { method = "exact" }); local te = clock() - t
       t = clock(); local h = ns.Tour.plan(world, prof, start, pool, { method = "heuristic" }); local th = clock() - t
       local b = buckets[n] or { runs = 0, te = 0, th = 0, eq = 0, gap = 0, worst = 0 }
@@ -128,7 +128,7 @@ if which == "tour" or which == "all" then
       b.gap = b.gap + gap; if gap > b.worst then b.worst = gap end
     end
   end
-  for n = 3, ns.Tour.EXACT_LIMIT do
+  for n = 3, 16 do
     local b = buckets[n]
     if b then
       print(("%5d | %4d | %8.1f | %7.1f | %d/%d | %6.2f%% | %6.2f%%"):format(n, b.runs, 1000 * b.te / b.runs, 1000 * b.th / b.runs, b.eq, b.runs, 100 * b.gap / b.runs, 100 * b.worst))

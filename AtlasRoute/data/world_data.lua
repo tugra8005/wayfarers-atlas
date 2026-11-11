@@ -1,5 +1,14 @@
 -- Hand-built map of Classic-era Eastern Kingdoms and Kalimdor.
 --
+-- Target: World of Warcraft: Forever (Classic-based, launched 2026-11-04). The Classic network
+-- is kept; Forever's additions are marked "Forever" below with the guides that report them:
+--   WF = wowforever.be/guides/flight-paths (reads live client 1.60.1.70862)
+--   CW = classicwowforever.com/boats-and-zeppelins (live client tables, 2026-11-08)
+--   CC = conquestcapped.com WoW Forever travel routes (2026-10-20)
+--   TL = wowforevertierlist.com/travel (beta data as of 2026-10-08)
+-- Where they disagree, live-client sources (WF, CW) win. Items only the beta reported are
+-- marked unconfirmed = true and are used only when the profile sets unconfirmed = true.
+--
 -- APPROXIMATE DATA. Coordinates are in yards on a per-continent plane, placed by hand from the
 -- zone layout; they are not read from the game files. Flight links, boats, zeppelins and the
 -- tram follow the Classic network; ride and wait times are estimates. The algorithm does not
@@ -60,9 +69,32 @@ D.places = {
   { id = "brackenwall",    name = "Brackenwall Village",    zone = "Dustwallow Marsh",     continent = "KAL", x = 3900, y = 3500 },
   { id = "freewind",       name = "Freewind Post",          zone = "Thousand Needles",     continent = "KAL", x = 3900, y = 2600 },
   { id = "mojache",        name = "Camp Mojache",           zone = "Feralas",              continent = "KAL", x = 2600, y = 3000 },
-  { id = "feathermoon",    name = "Feathermoon Stronghold", zone = "Feralas",              continent = "KAL", x = 1200, y = 3000 },
+  { id = "feathermoon",    name = "Feathermoon Stronghold", zone = "Feralas",              continent = "KAL", x = 1200, y = 3000, region = "SARDOR" },
+  { id = "forgottencoast", name = "The Forgotten Coast",    zone = "Feralas",              continent = "KAL", x = 1500, y = 3000 },
   { id = "gadgetzan",      name = "Gadgetzan",              zone = "Tanaris",              continent = "KAL", x = 4600, y = 1500 },
   { id = "cenarionhold",   name = "Cenarion Hold",          zone = "Silithus",             continent = "KAL", x = 2700, y = 1400 },
+  -- Classic places the Forever additions connect to ----------------------------------------
+  { id = "morgansvigil",   name = "Morgan's Vigil",         zone = "Burning Steppes",      continent = "EK",  x = 2900, y = 3600 },
+  { id = "flamecrest",     name = "Flame Crest",            zone = "Burning Steppes",      continent = "EK",  x = 2300, y = 3700 },
+  { id = "nijelspoint",    name = "Nijel's Point",          zone = "Desolace",             continent = "KAL", x = 2000, y = 6100 },
+  { id = "shadowprey",     name = "Shadowprey Village",     zone = "Desolace",             continent = "KAL", x = 1300, y = 5200 },
+  { id = "nighthaven",     name = "Nighthaven",             zone = "Moonglade",            continent = "KAL", x = 3300, y = 9100, region = "MOONGLADE" },
+  -- Forever: The Riverglades (EK; borders Redridge, Burning Steppes, Swamp of Sorrows, Badlands: TL)
+  { id = "farholde",       name = "Farholde Keep",          zone = "The Riverglades",      continent = "EK",  x = 3600, y = 3100 },
+  { id = "rogmar",         name = "Rog'mar",                zone = "The Riverglades",      continent = "EK",  x = 3900, y = 3500 },
+  { id = "powderfuse",     name = "Powderfuse Port",        zone = "The Riverglades",      continent = "EK",  x = 4300, y = 3000 },
+  { id = "steamwheedle",   name = "Steamwheedle Port",      zone = "Tanaris",              continent = "KAL", x = 5000, y = 1700 },
+  -- Forever: Mount Hyjal (reached from Winterspring through Darkwhisper Gorge: TL)
+  { id = "taintedfoothills", name = "Tainted Foothills",    zone = "Mount Hyjal",          continent = "KAL", x = 3900, y = 8300, region = "HYJAL" },
+  { id = "summit",         name = "Summit of Eternity",     zone = "Mount Hyjal",          continent = "KAL", x = 3600, y = 8000, region = "HYJAL" },
+  -- Forever: Shen'dralas (on foot through the Valley of Bones south of Desolace, no flight master: TL)
+  { id = "shendralas",     name = "Shen'dralas",            zone = "Shen'dralas",          continent = "KAL", x = 1500, y = 4300, region = "SHENDRALAS" },
+  -- Forever: Dalaran in Alterac Mountains (WIKI; docks on the north side: CW)
+  { id = "dalaran",        name = "Dalaran",                zone = "Alterac Mountains",    continent = "EK",  x = 2200, y = 8100 },
+  -- Forever: Skywatcher Plateau, NW Mulgore (CW, TL)
+  { id = "skywatcher",     name = "Skywatcher Plateau",     zone = "Mulgore",              continent = "KAL", x = 2200, y = 5300 },
+  -- Forever: Zephras Isle, Skyborne start; shown in its own box above the map (CC)
+  { id = "valanaar",       name = "Valanaar",               zone = "Zephras Isle",         continent = "ZEP", x = 500,  y = 500 },
 }
 
 -- Flight masters: place id -> faction (nil = both factions)
@@ -78,6 +110,16 @@ D.flightMasters = {
   taurajo = "Horde", brackenwall = "Horde", freewind = "Horde", mojache = "Horde",
   bootybay = false, thoriumpoint = false, lightshope = false, ratchet = false,
   gadgetzan = false, cenarionhold = false, everlook = false,
+  morgansvigil = "Alliance", flamecrest = "Horde", nijelspoint = "Alliance", shadowprey = "Horde",
+  -- Forever (WF, CC, TL, CW agree on these four)
+  farholde = "Alliance", rogmar = "Horde", taintedfoothills = false, summit = false,
+}
+
+-- Flight masters with extra conditions.
+D.flightMasterExtra = {
+  nighthaven = { class = "DRUID" }, -- druids only (WF)
+  -- Powderfuse Port: no flight master in the live client (WF, CW); beta had one (TL, CC)
+  powderfuse = { unconfirmed = true },
 }
 
 -- Flight links (undirected). Each link is usable by a faction if both ends are its own or neutral.
@@ -109,12 +151,46 @@ D.flightLinks = {
   { "gadgetzan", "freewind" }, { "gadgetzan", "theramore" }, { "gadgetzan", "brackenwall" }, { "gadgetzan", "feathermoon" },
   { "gadgetzan", "cenarionhold" }, { "cenarionhold", "mojache" }, { "cenarionhold", "feathermoon" },
   { "everlook", "auberdine" }, { "everlook", "astranaar" }, { "everlook", "orgrimmar" }, { "everlook", "splintertree" },
+  -- Classic links of the places added for Forever (approximate, like the rest of this list)
+  { "morgansvigil", "lakeshire" }, { "morgansvigil", "ironforge" },
+  { "flamecrest", "kargath" }, { "flamecrest", "stonard" },
+  { "nijelspoint", "astranaar" }, { "nijelspoint", "feathermoon" },
+  { "shadowprey", "thunderbluff" }, { "shadowprey", "mojache" },
+  { "nighthaven", "ruttheran" }, { "nighthaven", "thunderbluff" }, -- druids only (WF)
+  -- Forever (WF, CC, CW): Farholde Keep -> Lakeshire, Thelsamar, Morgan's Vigil
+  { "farholde", "lakeshire" }, { "farholde", "thelsamar" }, { "farholde", "morgansvigil" },
+  -- Forever (WF, CC, TL): Rog'mar -> Stonard, Hammerfall, Kargath, Flame Crest
+  { "rogmar", "stonard" }, { "rogmar", "hammerfall" }, { "rogmar", "kargath" }, { "rogmar", "flamecrest" },
+  -- Forever (WF, CC, TL, CW): Tainted Foothills -> Everlook, Summit of Eternity
+  { "taintedfoothills", "everlook" }, { "taintedfoothills", "summit" },
+}
+
+-- Links only the beta reported.
+D.unconfirmedFlightLinks = {
+  { "farholde", "powderfuse" }, -- TL lists it; WF and CW: gone in the live client
 }
 
 -- Ships, zeppelins, tram. cycle = time between departures; expected wait = cycle / 2.
 D.transports = {
   { from = "menethil",  to = "theramore", mode = "boat",     ride = 150, cycle = 360, faction = "Alliance" },
-  { from = "menethil",  to = "auberdine", mode = "boat",     ride = 150, cycle = 360, faction = "Alliance" },
+  -- Forever: Menethil -> Southshore -> Auberdine -> Menethil is a one-way loop (CC, CW). WF
+  -- instead lists a direct Menethil-Auberdine boat; CW reads the live client, so the loop wins.
+  -- Staying aboard Menethil -> Auberdine pays one wait.
+  { from = "menethil",   to = "southshore", mode = "boat",   ride = 120, cycle = 480, faction = "Alliance", oneWay = true },
+  { from = "southshore", to = "auberdine",  mode = "boat",   ride = 180, cycle = 480, faction = "Alliance", oneWay = true },
+  { from = "auberdine",  to = "menethil",   mode = "boat",   ride = 150, cycle = 480, faction = "Alliance", oneWay = true },
+  { from = "menethil",   to = "auberdine",  mode = "boat",   ride = 300, cycle = 480, faction = "Alliance", oneWay = true },
+  -- Forever: Stormwind Harbor -> Auberdine (all five sources)
+  { from = "stormwind",  to = "auberdine",  mode = "boat",   ride = 180, cycle = 360, faction = "Alliance" },
+  -- Forever: Steamwheedle Port (Tanaris) <-> Powderfuse Port (Riverglades), neutral (WF, CC, CW, TL)
+  { from = "steamwheedle", to = "powderfuse", mode = "boat", ride = 180, cycle = 360 },
+  -- Forever: Skyborne skyships from Valanaar, departures about every 5 minutes (CC)
+  { from = "valanaar",   to = "dalaran",    mode = "skyship", ride = 120, cycle = 300 },                    -- both factions (WF, CC)
+  { from = "valanaar",   to = "skywatcher", mode = "skyship", ride = 120, cycle = 300, faction = "Horde" }, -- Horde (WF, TL)
+  -- Classic: Feathermoon ferry to the Forgotten Coast (WF, CC, CW)
+  { from = "feathermoon", to = "forgottencoast", mode = "boat", ride = 30, cycle = 60 },
+  -- Beta only: portal in Dalaran's Violet Citadel to the Stormwind Mage Tower (CC, TL)
+  { from = "dalaran",    to = "stormwind",  mode = "portal", ride = 5, cycle = 0, faction = "Alliance", oneWay = true, unconfirmed = true },
   { from = "auberdine", to = "ruttheran", mode = "boat",     ride = 90,  cycle = 240, faction = "Alliance" },
   { from = "bootybay",  to = "ratchet",   mode = "boat",     ride = 150, cycle = 360 },
   { from = "orgrimmar", to = "undercity", mode = "zeppelin", ride = 120, cycle = 300, faction = "Horde" },
@@ -124,19 +200,30 @@ D.transports = {
   { from = "ruttheran", to = "darnassus", mode = "portal",   ride = 5,   cycle = 0,   faction = "Alliance" },
 }
 
--- Mage self-teleports (cast from anywhere on the ground).
+-- Teleports, cast from anywhere on the ground. spell / item ids are checked in game
+-- (IsSpellKnown, GetItemCount); outside the game class and profile.items decide.
+-- limited = once per plan (cooldown longer than a plan); toBind = to the hearthstone's bind point.
 D.teleports = {
-  { name = "Teleport: Stormwind",     to = "stormwind",    mode = "teleport", class = "MAGE", faction = "Alliance" },
-  { name = "Teleport: Ironforge",     to = "ironforge",    mode = "teleport", class = "MAGE", faction = "Alliance" },
-  { name = "Teleport: Darnassus",     to = "darnassus",    mode = "teleport", class = "MAGE", faction = "Alliance" },
-  { name = "Teleport: Orgrimmar",     to = "orgrimmar",    mode = "teleport", class = "MAGE", faction = "Horde" },
-  { name = "Teleport: Undercity",     to = "undercity",    mode = "teleport", class = "MAGE", faction = "Horde" },
-  { name = "Teleport: Thunder Bluff", to = "thunderbluff", mode = "teleport", class = "MAGE", faction = "Horde" },
+  { name = "Teleport: Stormwind",     to = "stormwind",    mode = "teleport", class = "MAGE", faction = "Alliance", spell = 3561 },
+  { name = "Teleport: Ironforge",     to = "ironforge",    mode = "teleport", class = "MAGE", faction = "Alliance", spell = 3562 },
+  { name = "Teleport: Darnassus",     to = "darnassus",    mode = "teleport", class = "MAGE", faction = "Alliance", spell = 3565 },
+  { name = "Teleport: Orgrimmar",     to = "orgrimmar",    mode = "teleport", class = "MAGE", faction = "Horde",    spell = 3567 },
+  { name = "Teleport: Undercity",     to = "undercity",    mode = "teleport", class = "MAGE", faction = "Horde",    spell = 3563 },
+  { name = "Teleport: Thunder Bluff", to = "thunderbluff", mode = "teleport", class = "MAGE", faction = "Horde",    spell = 3566 },
+  { name = "Teleport: Moonglade",     to = "nighthaven",   mode = "teleport", class = "DRUID", spell = 18960 },
+  { name = "Astral Recall",           toBind = true,       mode = "teleport", class = "SHAMAN", spell = 556, limited = true },
+  { name = "Dimensional Ripper - Everlook",    to = "everlook",  mode = "device", item = 18984, limited = true },
+  { name = "Ultrasafe Transporter: Gadgetzan", to = "gadgetzan", mode = "device", item = 18986, limited = true },
+  -- Forever, beta only: Teleport: Dalaran at level 50 for both factions (CC; TL found none)
+  { name = "Teleport: Dalaran",       to = "dalaran",      mode = "teleport", class = "MAGE", unconfirmed = true },
 }
 
 -- Walking links the k-nearest rule misses (mountain passes, bridges).
 D.extraWalks = {
   { "menethil", "dunalgaz" }, { "thandol", "refugepointe" }, { "dunalgaz", "ironforge" },
+  { "taintedfoothills", "everlook" },  -- Darkwhisper Gorge (TL)
+  { "nighthaven", "everlook" },        -- Timbermaw Hold
+  { "shendralas", "shadowprey" },      -- Valley of Bones (TL)
 }
 
 function D.build(World)
@@ -150,7 +237,15 @@ function D.build(World)
   for id in pairs(D.flightMasters) do fm[#fm + 1] = id end
   table.sort(fm) -- deterministic node order
   for _, id in ipairs(fm) do w:addFlightMaster(id, D.flightMasters[id] or nil) end
+  local extra = {}
+  for id in pairs(D.flightMasterExtra) do extra[#extra + 1] = id end
+  table.sort(extra)
+  for _, id in ipairs(extra) do
+    local x = D.flightMasterExtra[id]
+    w:addFlightMaster(id, x.faction, x.class, x.unconfirmed)
+  end
   for _, l in ipairs(D.flightLinks) do w:addFlightLink(l[1], l[2]) end
+  for _, l in ipairs(D.unconfirmedFlightLinks) do w:addFlightLink(l[1], l[2], { unconfirmed = true }) end
   for _, t in ipairs(D.transports) do w:addTransport(t) end
   for _, t in ipairs(D.teleports) do w:addTeleport(t) end
   w:connectWalking(4, D.extraWalks)

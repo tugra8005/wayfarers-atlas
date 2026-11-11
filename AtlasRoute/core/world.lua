@@ -50,9 +50,11 @@ function World:_add(node)
   return i
 end
 
+local GATES = { "faction", "class", "item", "spell", "unconfirmed", "name" }
+
 function World:edge(from, to, mode, cost, gate)
   local e = { from = from, to = to, mode = mode, cost = cost }
-  if gate then e.faction, e.class = gate.faction, gate.class end
+  if gate then for _, k in ipairs(GATES) do e[k] = gate[k] end end
   local list = self.adj[from]
   list[#list + 1] = e
   return e
@@ -70,43 +72,52 @@ function World:index(id)
   return i
 end
 
--- faction = "Alliance", "Horde" or nil (neutral)
-function World:addFlightMaster(placeId, faction)
+-- faction = "Alliance", "Horde" or nil (neutral); class = only that class may use it;
+-- unconfirmed = only reported from the beta
+function World:addFlightMaster(placeId, faction, class, unconfirmed)
   local g = self:index(placeId)
   local p = self.nodes[g]
   local a = self:_add({ id = "air:" .. placeId, name = p.name .. " (flight master)",
                         zone = p.zone, continent = p.continent, x = p.x, y = p.y,
-                        kind = "air", ground = g, faction = faction })
-  self:edge(g, a, "board", World.BOARD_TIME, { faction = faction })
+                        kind = "air", ground = g, faction = faction, class = class })
+  self:edge(g, a, "board", World.BOARD_TIME, { faction = faction, class = class, unconfirmed = unconfirmed })
   self:edge(a, g, "land", 0)
   return a
 end
 
-function World:addFlightLink(idA, idB)
+-- opts = {class = "DRUID", unconfirmed = true}
+function World:addFlightLink(idA, idB, opts)
+  opts = opts or {}
   local a, b = self:index("air:" .. idA), self:index("air:" .. idB)
   local na, nb = self.nodes[a], self.nodes[b]
   local cost = dist(na, nb) * World.FLY_DETOUR / World.FLY_SPEED
   -- a link is usable only if the rider's faction can use both ends
-  local faction = na.faction or nb.faction
-  self:edge(a, b, "fly", cost, { faction = faction })
-  self:edge(b, a, "fly", cost, { faction = faction })
+  local gate = { faction = na.faction or nb.faction, class = opts.class or na.class or nb.class,
+                 unconfirmed = opts.unconfirmed }
+  self:edge(a, b, "fly", cost, gate)
+  self:edge(b, a, "fly", cost, gate)
   self.flightLinks[#self.flightLinks + 1] = { a = a, b = b }
 end
 
--- t = {from, to, mode, ride, cycle, faction, oneWay}
+-- t = {from, to, mode, ride, cycle, faction, oneWay, unconfirmed, name}
 function World:addTransport(t)
   local a, b = self:index(t.from), self:index(t.to)
   local cost = t.ride + (t.cycle or 0) / 2
-  local gate = { faction = t.faction }
+  local gate = { faction = t.faction, unconfirmed = t.unconfirmed, name = t.name }
   self:edge(a, b, t.mode, cost, gate)
   if not t.oneWay then self:edge(b, a, t.mode, cost, gate) end
 end
 
--- t = {to, mode, cost, faction, class}
+-- t = {to | toBind, mode, cost, faction, class, item, spell, limited, unconfirmed, name}
+--   limited  = usable once per plan (cooldown longer than a plan)
+--   toBind   = goes to the hearthstone's bind location (Astral Recall)
+--   item     = needs this item in the bags (engineering devices)
+--   spell    = spell id, checked in game with IsSpellKnown
 function World:addTeleport(t)
   self.teleports[#self.teleports + 1] = {
-    to = self:index(t.to), mode = t.mode, cost = t.cost or World.CAST_TIME,
-    faction = t.faction, class = t.class, name = t.name,
+    to = t.to and self:index(t.to), toBind = t.toBind, mode = t.mode,
+    cost = t.cost or World.CAST_TIME, faction = t.faction, class = t.class, item = t.item,
+    spell = t.spell, limited = t.limited, unconfirmed = t.unconfirmed, name = t.name,
   }
 end
 
@@ -118,6 +129,9 @@ function World:connectWalking(k, extra)
   for i, n in ipairs(self.nodes) do
     if n.kind == "ground" then ground[#ground + 1] = i end
   end
+  -- k-nearest only within a region (default: the continent); walled-off areas such as
+  -- Mount Hyjal get their own region and are joined only by the explicit `extra` passes
+  local function region(n) return n.region or n.continent end
   local has = {}
   local function link(i, j)
     local key = i < j and (i .. ":" .. j) or (j .. ":" .. i)
@@ -130,7 +144,7 @@ function World:connectWalking(k, extra)
   for _, i in ipairs(ground) do
     local cands = {}
     for _, j in ipairs(ground) do
-      if j ~= i and self.nodes[j].continent == self.nodes[i].continent then
+      if j ~= i and region(self.nodes[j]) == region(self.nodes[i]) then
         cands[#cands + 1] = { j = j, d = dist(self.nodes[i], self.nodes[j]) }
       end
     end
@@ -141,18 +155,26 @@ function World:connectWalking(k, extra)
 end
 
 -- Profile: what this character can use.
---   faction  "Alliance" | "Horde"
---   class    "MAGE", ... (upper-case, as UnitClass returns it)
---   speed    ground speed in yards/s (7 on foot, 11.2 with a 60% mount, 14 with 100%)
---   hearth   place id the hearthstone is bound to, or nil
+--   faction      "Alliance" | "Horde"
+--   class        "MAGE", ... (upper-case, as UnitClass returns it)
+--   speed        ground speed in yards/s (7 on foot, 11.2 with a 60% mount, 14 with 100%)
+--   hearth       place id the hearthstone is bound to, or nil
+--   items        set of item ids the character carries (engineering devices), or nil
+--   knows        function(spellId) -> bool (in game: IsSpellKnown), or nil = trust the class
+--   flySpeed     flight speed multiplier (Forever's Frequent Flier perk: 1.2)
+--   unconfirmed  true = also use routes only reported from the beta
 function World:allowed(gated, profile)
   if gated.faction and gated.faction ~= profile.faction then return false end
   if gated.class and gated.class ~= profile.class then return false end
+  if gated.item and not (profile.items and profile.items[gated.item]) then return false end
+  if gated.spell and profile.knows and not profile.knows(gated.spell) then return false end
+  if gated.unconfirmed and not profile.unconfirmed then return false end
   return true
 end
 
 function World:edgeCost(e, profile)
   if e.mode == "walk" then return e.cost / (profile.speed or 7) end
+  if e.mode == "fly" then return e.cost / (profile.flySpeed or 1) end
   return e.cost
 end
 

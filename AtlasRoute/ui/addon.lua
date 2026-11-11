@@ -11,6 +11,8 @@
 --   /ar from <place>        override "where you are" (default: matched from your zone)
 --   /ar speed <yd/s>        7 on foot, 11.2 with a 60% mount, 14 with 100%
 --   /ar places [text]       list known places
+--   /ar flier on|off        Forever's Frequent Flier perk (+20% flight speed)
+--   /ar beta on|off         also use routes only reported from the Forever beta
 local addonName, ns = ...
 
 local World, Router, Tour = ns.World, ns.Router, ns.Tour
@@ -19,6 +21,7 @@ local world -- built on ADDON_LOADED
 local MODE_COLOR = {
   walk = "ffffffff", fly = "ff66ccff", boat = "ff3399ff", zeppelin = "ffff9933",
   tram = "ffcccccc", portal = "ffcc66ff", teleport = "ffcc66ff", hearth = "ff66ff66",
+  skyship = "ffffcc33", device = "ffff6666",
 }
 
 local function out(msg)
@@ -52,7 +55,25 @@ end
 local function profile()
   local db = AtlasRouteDB
   local _, class = UnitClass("player")
-  local p = { faction = UnitFactionGroup("player"), class = class, speed = db.speed or 11.2 }
+  local p = { faction = UnitFactionGroup("player"), class = class, speed = db.speed or 11.2,
+              flySpeed = db.flier and 1.2 or 1, unconfirmed = db.beta or false }
+  local function ready(start, duration) return not duration or duration <= 1.5 end -- 1.5 s = GCD
+  -- Spells: known and not on cooldown.
+  if IsSpellKnown then
+    p.knows = function(id)
+      if not IsSpellKnown(id) then return false end
+      if GetSpellCooldown then return ready(GetSpellCooldown(id)) end
+      return true
+    end
+  end
+  -- Engineering devices in the bags and off cooldown.
+  p.items = {}
+  for _, t in ipairs(world.teleports) do
+    if t.item and GetItemCount and GetItemCount(t.item) > 0
+       and (not GetItemCooldown or ready(GetItemCooldown(t.item))) then
+      p.items[t.item] = true
+    end
+  end
   local bind = GetBindLocation and GetBindLocation()
   if bind then
     local place = findPlace(bind)
@@ -151,7 +172,7 @@ end
 
 local commands = {}
 function commands.help()
-  out("/ar demo | quest <giver> > <objectives> > <turn-in> | list | clear | remove <n> | plan | route <place> | from <place> | speed <yd/s> | places [text]")
+  out("/ar demo | quest <giver> > <objectives> > <turn-in> | list | clear | remove <n> | plan | route <place> | from <place> | speed <yd/s> | places [text] | flier on|off | beta on|off")
 end
 function commands.demo()
   local prof = profile()
@@ -204,6 +225,17 @@ function commands.speed(rest)
   AtlasRouteDB.speed = v
   out(("Ground speed %.1f yd/s."):format(v))
 end
+local function toggle(key, label)
+  return function(rest)
+    local v = trim(rest or ""):lower()
+    if v == "on" then AtlasRouteDB[key] = true elseif v == "off" then AtlasRouteDB[key] = false
+    else AtlasRouteDB[key] = not AtlasRouteDB[key] end
+    out(label .. ": " .. (AtlasRouteDB[key] and "on" or "off"))
+  end
+end
+commands.flier = toggle("flier", "Frequent Flier (+20% flight speed)")
+commands.beta = toggle("beta", "Beta-only routes")
+
 function commands.places(rest)
   local f = trim(rest or ""):lower()
   local names = {}

@@ -26,24 +26,24 @@ Dünya çok kipli bir graftır (`core/world.lua`). Bütün maliyetler saniye cin
 
 | Kenar | Anlamı |
 |---|---|
-| `walk` | aynı kıtadaki en yakın 4 yer (artı elle eklenen geçitler); mesafe × 1,3 / yer hızı |
-| `board` / `fly` / `land` | her uçuş ustası iki düğümdür, yer ve hava. Binmek 5 sn; arka arkaya uçuşlar tek uçuş sayılır, oyundaki taksi gibi |
-| `boat`, `zeppelin`, `tram`, `portal` | yolculuk + beklenen bekleme (kalkış aralığının yarısı) |
-| büyücü ışınlanmaları | yerdeki her düğümden hedef şehre, 10 sn; yalnızca `MAGE`, kendi fraksiyonu |
-| hearthstone | yerdeki her düğümden bağlanan yere; plan başına **bir** kez |
+| `walk` | aynı bölgedeki en yakın 4 yer (artı elle eklenen geçitler); mesafe × 1,3 / yer hızı. Mount Hyjal, Moonglade, Shen'dralas ve Feathermoon'un adası ayrı bölgedir; yalnızca geçitlerinden girilir |
+| `board` / `fly` / `land` | her uçuş ustası iki düğümdür, yer ve hava. Binmek 5 sn; arka arkaya uçuşlar tek uçuş sayılır, oyundaki taksi gibi. Frequent Flier ile uçuş %20 hızlı |
+| `boat`, `zeppelin`, `skyship`, `tram`, `portal` | yolculuk + beklenen bekleme (kalkış aralığının yarısı); tek yönlü hatlar olabilir (Menethil gemi döngüsü) |
+| sınırsız ışınlanmalar | yerdeki her düğümden hedefe, 10 sn: büyücü şehir ışınlanmaları, druid Teleport: Moonglade |
+| tek kullanımlık ışınlanmalar | hearthstone, şaman Astral Recall (bağlanılan yere), Dimensional Ripper - Everlook, Ultrasafe Transporter: Gadgetzan; her biri plan başına **bir** kez |
 
-Fraksiyon kısıtları kenar üzerindedir: Horde, Alliance uçuş ustasına binemez, Alliance gemisini kullanamaz. Uçarken ışınlanma yapılamaz.
+Kısıtlar kenarın üzerindedir: fraksiyon, sınıf (druid uçuş ustası Nighthaven), eşya (mühendislik aletleri çantada olmalı), büyü (oyunda `IsSpellKnown`) ve yalnızca betada görülmüş olma (`unconfirmed`). Uçarken ışınlanma yapılamaz.
 
-**Hearthstone durumu.** Yol bulucu (`core/router.lua`), *(düğüm, hearthstone kullanılabilir mi)* durumları üzerinde Dijkstra çalıştırır. Böylece taşın tek kullanımlık olması tam olarak modellenir ve hangi bacakta kullanılacağına arama karar verir.
+**Tek kullanımlık ışınlanmalar.** Hearthstone ve mühendislik aletlerinin bekleme süreleri bir plandan uzun olduğu için her biri bir kez kullanılabilir sayılır. Astral Recall'ın bekleme süresi daha kısadır; uzun bir planda ikinci kez kullanılabilecekken model onu da bir kez sayar. Bu, planı hiçbir zaman olduğundan hızlı göstermez, en kötü ihtimalle bir fırsatı kaçırır. Yol bulucu (`core/router.lua`), *(düğüm, harcanmış ışınlanmalar kümesi)* durumları üzerinde Dijkstra çalıştırır; K ışınlanma için düğüm başına 2^K durum vardır. Böylece hangisinin hangi bacakta kullanılacağına arama karar verir.
 
 ## Algoritmalar
 
 ### Görev turu (`core/tour.lua`)
 
-1. Başlangıçtan ve her duraktan bir Dijkstra çalışır. Sonuç iki matristir: `noH[i][j]` hearthstone'suz, `useH[i][j]` hearthstone kullanarak en hızlı süre.
+1. Başlangıçtan ve her duraktan bütün ışınlanmalar elde iken bir Dijkstra çalışır. Sonuç `D[i][j][C]` tablosudur: i'den j'ye tam olarak C kümesindeki ışınlanmaları harcayan en hızlı süre.
 2. Sıralama:
-   - **kesin:** *(ziyaret edilen küme, son durak, hearthstone kullanıldı mı)* üzerinde Held-Karp dinamik programlaması. Bir durak ancak önkoşulları kümedeyken eklenir (alma < hedefler < teslim). Karmaşıklık O(2ⁿ·n²). Varsayılan sınır 13 duraktır: JIT kapalı LuaJIT'te (WoW'a yakın) 13 durak 0,11 sn, 16 durak 1,5 sn sürüyor.
-   - **sezgisel:** önkoşula uyan en yakın durakla başlar, sonra Or-opt uygular (1–3 duraklık bir bloğu başka yere taşıma) ve iyileşme kalmayana kadar sürdürür.
+   - **kesin:** *(ziyaret edilen küme, son durak, harcanmış ışınlanmalar)* üzerinde Held-Karp dinamik programlaması. Bir durak ancak önkoşulları kümedeyken eklenir (alma < hedefler < teslim), her bacak henüz harcanmamış herhangi bir C kümesini harcayabilir. Karmaşıklık O(2ⁿ·n²·3ᴷ). Kesin arama, bu sayı 13 durak + 1 ışınlanma düzeyini aşmadıkça kullanılır. JIT kapalı LuaJIT'te (WoW'a yakın) bu düzey yaklaşık 0,1 sn sürüyor.
+   - **sezgisel:** önkoşula uyan en yakın durakla başlar, sonra Or-opt uygular (1–3 duraklık bir bloğu başka yere taşıma) ve iyileşme kalmayana kadar sürdürür. Sabit bir sıra için ışınlanmaların en iyi dağılımı bacaklar üzerinde küçük bir DP ile kesin bulunur.
 3. Oyunda arama bir coroutine'de, her karede bir dilim çalışır; büyük bir arama oyunu dondurmaz.
 
 ### Kenar kapsama (`core/coverage.lua`, `core/cpp.lua`)
@@ -78,18 +78,18 @@ Fraksiyon kısıtları kenar üzerindedir: Horde, Alliance uçuş ustasına bine
 
 | karakter | bağlantı | Atlas | ağırlıklı Atlas | Kırsal Postacı | alt sınır |
 |---|---|---|---|---|---|
-| Alliance | 68 | 40 749 | 9 751 | 5 812 | 5 137 |
-| Alliance büyücü | 68 | 40 749 | 9 751 | 5 419 | 5 137 |
-| Horde | 64 | 38 999 | 8 667 | 4 470 | 3 920 |
-| Horde büyücü | 64 | 38 999 | 8 667 | 3 989 | 3 920 |
+| Alliance | 86 | 49 308 | 9 718 | 6 736 | 6 061 |
+| Alliance büyücü | 86 | 49 308 | 9 718 | 6 096 | 6 061 |
+| Horde | 84 | 46 193 | 7 994 | 5 648 | 5 098 |
+| Horde büyücü | 84 | 46 193 | 7 994 | 5 232 | 5 098 |
 
 Alt sınır, gerekli kenarların ağırlıkları toplamıdır. Ağırlıklı Atlas'ta ışınlanmalar sonucu değiştirmedi, çünkü yalnızca takılınca atlamak için kullanılıyor ve bu haritada yürüyüş hiç takılmadı. Kırsal Postacı kurgusu ışınlanmaları akışın içinde kullanıyor; büyücüde süre düşüyor.
 
-**Görev turu, sezgisel ile kesin (rastgele görev alt kümeleri, 81 deneme):** 11 durağa kadar her denemede aynı sonuç. 12 durakta ortalama fark %0,18 (en kötü %1,06), 13 durakta %0,73 (en kötü %5,36). İkisi de 4 ms'nin altında.
+**Görev turu, sezgisel ile kesin (rastgele görev alt kümeleri, 84 deneme):** 10 durağa kadar her denemede aynı sonuç. 11–13 durakta ortalama fark %0,18–0,57, en kötüsü %3,99. İkisi de 5 ms'nin altında.
 
 ## Oyuna kurulum
 
-Hedef sürüm **World of Warcraft: Forever**'dır (Classic tabanlı, 4 Kasım 2026'da çıktı). Haritadaki veriler özgün Classic ağıdır. Forever'ın yeni bölgeleri ve yolları henüz eklenmedi: The Riverglades uçuş noktaları, yeni gemi hatları, Skyborne başlangıcı Zephras Isle ve Valanaar zeplinleri. Kaynaklar bunlarda birbiriyle çelişiyor, oyundan doğrulanınca `data/world_data.lua`'ya eklenebilir. Forever'da uçan binek olmadığı için modelde de yok.
+Hedef sürüm **World of Warcraft: Forever**'dır (Classic tabanlı, 4 Kasım 2026'da çıktı). Forever'da uçan binek yoktur, modelde de yok. Eklenen Forever yolları ve kaynakları için aşağıdaki *Veri* bölümüne bakın.
 
 1. `AtlasRoute/` klasörünü kullandığınız sürümün `World of Warcraft/<sürüm klasörü>/Interface/AddOns/` dizinine kopyalayın.
 2. `AtlasRoute.toc` içindeki `## Interface:` numarası istemcinizinkiyle aynı olmalı. Oyunda `/dump select(4, GetBuildInfo())` yazarak öğrenin ve dosyadaki `11507` yerine onu koyun. Bu numara denenmedi.
@@ -105,6 +105,8 @@ Komutlar (`/ar` ya da `/atlasroute`):
 /ar plan                                   bulunduğunuz yerden tur
 /ar route Astranaar                        tek bir yere en hızlı yol
 /ar from <yer> | speed <yd/sn> | places [metin]
+/ar flier on|off                           Frequent Flier (+%20 uçuş hızı)
+/ar beta on|off                            yalnızca betada görülen yolları da kullan
 ```
 
 Fraksiyon (`UnitFactionGroup`), sınıf (`UnitClass`), hearthstone'un bağlı olduğu yer (`GetBindLocation`) ve bekleme süresi (`GetItemCooldown(6948)`) oyundan okunur. Bulunduğunuz yer bölge adından eşlenir.
@@ -113,7 +115,20 @@ Fraksiyon (`UnitFactionGroup`), sınıf (`UnitClass`), hearthstone'un bağlı ol
 
 ## Veri
 
-`data/world_data.lua` elle kuruldu: Doğu Krallıkları ve Kalimdor'dan 51 yer, 40 uçuş ustası, 65 uçuş bağlantısı, gemi, zeplin, tram ve büyücü ışınlanmaları. Koordinatlar bölge yerleşiminden **yaklaşık** olarak yerleştirildi, oyun dosyalarından okunmadı. Yolculuk ve bekleme süreleri de tahmindir. Algoritmalar bu sayılara bağlı değildir; yalnızca örnek sonuçlar bağlıdır. Dosya değiştirilerek başka bir veriyle plan yapılabilir. `data/quest_data.lua` bu bölgelerdeki görevlere benzeyen örnek kütüklerdir; adlar oyundaki başlıkların birebir aynısı değildir.
+`data/world_data.lua` elle kuruldu: 67 yer, 50 uçuş ustası, 84 uçuş bağlantısı, 18 gemi/zeplin/skyship/tram/portal hattı, 11 ışınlanma.
+
+Forever'ın eklemeleri dört rehberden derlendi; çeliştikleri yerde oyunun canlı istemcisinden okuyan iki kaynak esas alındı (wowforever.be, classicwowforever.com):
+
+- **The Riverglades:** Farholde Keep (Alliance; Lakeshire, Thelsamar, Morgan's Vigil), Rog'mar (Horde; Stonard, Hammerfall, Kargath, Flame Crest), Powderfuse Port ↔ Steamwheedle Port gemisi (iki fraksiyon).
+- **Mount Hyjal:** Tainted Foothills (Everlook, Summit of Eternity), Winterspring'den Darkwhisper Gorge ile giriş. Betada bildirilen 60. seviye kapısı modellenmedi.
+- **Gemiler:** Stormwind Harbor → Auberdine; Menethil → Southshore → Auberdine → Menethil tek yönlü döngü (wowforever.be doğrudan hat diyor, canlı istemciyi okuyan diğer kaynak döngü diyor).
+- **Skyborne:** Valanaar (Zephras Isle) → Dalaran (iki fraksiyon) ve → Skywatcher Plateau (Horde), yaklaşık 5 dakikada bir.
+- **Shen'dralas:** Desolace'ın güneyindeki Valley of Bones'tan yürüyerek; uçuş ustası yok.
+- **Frequent Flier** (Legacy avantajı): +%20 uçuş hızı, isteğe bağlı.
+- **Yalnızca betada görülenler** (`unconfirmed`, varsayılan kapalı): Dalaran → Stormwind portalı, büyücü Teleport: Dalaran, Powderfuse uçuş ustası ve Farholde bağlantısı.
+- Forever'a özgü olmayan ama eksik olan Classic parçaları da eklendi: Burning Steppes ve Desolace uçuş ustaları, Nighthaven (yalnızca druid), Feathermoon feribotu, druid ve şaman ışınlanmaları, iki mühendislik aleti. Bu yeni parçaların bağlantıları da haritanın geri kalanı gibi yaklaşıktır.
+
+Gemi ve skyship yolculuk süreleri hiçbir kaynakta yok; tahmindir. Tidegear Coast uçuş noktasının hiç rotası olmadığı için eklenmedi; açılış gecesinin geçici portalları da eklenmedi. Koordinatlar bölge yerleşiminden **yaklaşık** olarak yerleştirildi, oyun dosyalarından okunmadı. Yolculuk ve bekleme süreleri de tahmindir. Algoritmalar bu sayılara bağlı değildir; yalnızca örnek sonuçlar bağlıdır. Dosya değiştirilerek başka bir veriyle plan yapılabilir. `data/quest_data.lua` bu bölgelerdeki görevlere benzeyen örnek kütüklerdir; adlar oyundaki başlıkların birebir aynısı değildir.
 
 ## Çalıştırma
 
@@ -134,6 +149,12 @@ luajit tools/plan.lua alliance ironforge
 ```bash
 luajit tools/plan.lua horde undercity mage
 ```
+
+```bash
+luajit tools/plan.lua horde valanaar shaman engineer flier
+```
+
+Bayraklar: `mage`, `druid`, `shaman`, `engineer` (iki mühendislik aleti çantada), `nohearth`, `flier`, `beta`.
 
 Java ile karşılaştırma (Java derleyicisi gerekir):
 
