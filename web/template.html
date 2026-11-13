@@ -1053,7 +1053,7 @@ footer .authors { font-family: var(--fell); font-size: 17px; color: #d9c595; mar
       var parts = [];
       if (!q.accepted) parts.push("from " + byId[q.giver].name);
       if (q.objectives.length) parts.push("to " + q.objectives.map(function (o) { return byId[o].name; }).join(", "));
-      parts.push((q.accepted ? "hand in at " : "back to ") + byId[q.turnin].name);
+      parts.push((!q.accepted && q.turnin === q.giver ? "back to " : "hand in at ") + byId[q.turnin].name);
       lab.appendChild(h("span", { "class": "qroute" }, (q.accepted ? "Already accepted, " : "") + parts.join(", ")));
       li.appendChild(lab);
       ul.appendChild(li);

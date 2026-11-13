@@ -242,7 +242,12 @@ end)
 
 local function pick(list, ids)
   local r = {}
-  for _, id in ipairs(ids) do for _, q in ipairs(list) do if q.id == id then r[#r + 1] = q end end end
+  for _, id in ipairs(ids) do
+    local found
+    for _, q in ipairs(list) do if q.id == id then found = q end end
+    assert(found, "no sample quest with id " .. id)
+    r[#r + 1] = found
+  end
   return r
 end
 
@@ -325,7 +330,7 @@ test("Several one-use teleports: each spent at most once, devices need the item"
   eq(#ns.Router.context(world, { faction = "Horde", class = "SHAMAN", hearth = "orgrimmar" }).L, 2)
   local _, legs = ns.Router.route(world, shaman, "stromgarde", "gadgetzan")
   truthy(uses(legs, "device", "Gadgetzan"), "transporter not used: " .. modes(legs))
-  local plan = ns.Tour.plan(world, shaman, "undercity", pick(ns.QuestData.horde, { "tigers", "feralas", "razorhill", "bluff" }))
+  local plan = ns.Tour.plan(world, shaman, "undercity", pick(ns.QuestData.horde, { "hunting", "returntb", "agony", "gromgol" }))
   local count = {}
   for _, leg in ipairs(plan.legs) do
     for _, t in ipairs(leg.travel) do
@@ -352,12 +357,12 @@ end
 
 test("Exact tour equals brute force over all orders (with precedence and hearthstone)", function()
   local cases = {
-    { A, "ironforge", pick(ns.QuestData.alliance, { "raptors", "letter", "astranaar" }) },
-    { A, "stormwind", pick(ns.QuestData.alliance, { "nightwatch", "letter", "astranaar" }) },
-    { H, "orgrimmar", pick(ns.QuestData.horde, { "hammerfall", "razorhill", "bluff" }) },
-    { { faction = "Horde", class = "MAGE", speed = 7 }, "crossroads", pick(ns.QuestData.horde, { "tigers", "bluff", "hammerfall" }) },
+    { A, "ironforge", pick(ns.QuestData.alliance, { "plea", "jameshyal", "barrensport" }) },
+    { A, "stormwind", pick(ns.QuestData.alliance, { "nightwatch", "jameshyal", "ironband" }) },
+    { H, "orgrimmar", pick(ns.QuestData.horde, { "hammerfall", "raisingspirits", "returntb" }) },
+    { { faction = "Horde", class = "MAGE", speed = 7 }, "crossroads", pick(ns.QuestData.horde, { "hunting", "returntb", "hammerfall" }) },
     { { faction = "Horde", class = "SHAMAN", speed = 11.2, hearth = "orgrimmar", items = { [18984] = true, [18986] = true } },
-      "undercity", pick(ns.QuestData.horde, { "tigers", "feralas", "bluff" }) },
+      "undercity", pick(ns.QuestData.horde, { "hunting", "agony", "hillsbrad" }) },
   }
   for ci, c in ipairs(cases) do
     local plan = ns.Tour.plan(world, c[1], c[2], c[3], { method = "exact" })
@@ -373,17 +378,34 @@ test("Exact tour equals brute force over all orders (with precedence and hearths
   end
 end)
 
+test("Quest chains: Raising Spirits is picked up only after Hammerfall is handed in", function()
+  for _, m in ipairs({ "exact", "heuristic" }) do
+    local plan = ns.Tour.plan(world, H, "undercity", pick(ns.QuestData.horde, { "raisingspirits", "hammerfall", "agony" }), { method = m })
+    local pos = {}
+    for k, leg in ipairs(plan.legs) do pos[leg.stop.quest .. ":" .. leg.stop.kind] = k end
+    truthy(pos["hammerfall:turnin"] < pos["raisingspirits:accept"], m)
+  end
+end)
+
+test("Every sample quest names places on the map", function()
+  for _, side in ipairs({ "alliance", "horde" }) do
+    local stops = ns.Tour.stops(world, ns.QuestData[side])
+    truthy(#stops > 0, side)
+    for _, q in ipairs(ns.QuestData[side]) do truthy(q.wiki, q.id .. " has no wiki page") end
+  end
+end)
+
 test("Tour orders respect accept -> objective -> turn-in", function()
   for _, m in ipairs({ "exact", "heuristic" }) do
-    local plan = ns.Tour.plan(world, A, "ironforge", pick(ns.QuestData.alliance, { "raptors", "ogres", "syndicate", "letter" }), { method = m })
+    local plan = ns.Tour.plan(world, A, "ironforge", pick(ns.QuestData.alliance, { "nightwatch", "northfold", "nobledeaths", "plea" }), { method = m })
     truthy(ns.Tour.feasible(plan.order, plan.stops), m)
     eq(#plan.order, #plan.stops, m)
   end
 end)
 
 test("Heuristic is never better than exact", function()
-  local plan1 = ns.Tour.plan(world, A, "menethil", pick(ns.QuestData.alliance, { "raptors", "ogres", "mathystra", "letter", "nightwatch" }), { method = "exact" })
-  local plan2 = ns.Tour.plan(world, A, "menethil", pick(ns.QuestData.alliance, { "raptors", "ogres", "mathystra", "letter", "nightwatch" }), { method = "heuristic" })
+  local plan1 = ns.Tour.plan(world, A, "menethil", pick(ns.QuestData.alliance, { "jameshyal", "northfold", "badlandsrun", "plea", "nightwatch" }), { method = "exact" })
+  local plan2 = ns.Tour.plan(world, A, "menethil", pick(ns.QuestData.alliance, { "jameshyal", "northfold", "badlandsrun", "plea", "nightwatch" }), { method = "heuristic" })
   truthy(plan2.seconds >= plan1.seconds - 1e-9)
 end)
 
@@ -429,7 +451,7 @@ test("Addon loads and plans with a stubbed WoW API", function()
   end
   slash("route Astranaar")
   local text = table.concat(chat, "\n")
-  truthy(text:find("Loaded 9 sample quests"), "demo")
+  truthy(text:find("Loaded 8 sample quests"), "demo")
   truthy(text:find("Planning from Menethil Harbor %(Alliance/MAGE, hearth: stormwind%)"), "profile")
   truthy(text:find("stops, .- total"), "plan output:\n" .. text:sub(-800))
   truthy(text:find("Menethil Harbor %-> Astranaar"), "route")

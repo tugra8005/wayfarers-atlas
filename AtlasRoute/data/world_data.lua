@@ -73,6 +73,16 @@ D.places = {
   { id = "forgottencoast", name = "The Forgotten Coast",    zone = "Feralas",              continent = "KAL", x = 1500, y = 3000 },
   { id = "gadgetzan",      name = "Gadgetzan",              zone = "Tanaris",              continent = "KAL", x = 4600, y = 1500 },
   { id = "cenarionhold",   name = "Cenarion Hold",          zone = "Silithus",             continent = "KAL", x = 2700, y = 1400 },
+  -- Quest objective areas (see quest_data.lua) --------------------------------------------
+  { id = "tranquilgardens", name = "Tranquil Gardens Cemetery", zone = "Duskwood",          continent = "EK",  x = 1950, y = 1800 },
+  { id = "strahnbrad",     name = "Strahnbrad",             zone = "Alterac Mountains",    continent = "EK",  x = 2650, y = 7950 },
+  { id = "northfold",      name = "Northfold Manor",        zone = "Arathi Highlands",     continent = "EK",  x = 2900, y = 6900 },
+  { id = "arathiraptors",  name = "Arathi Highlands",       zone = "Arathi Highlands",     continent = "EK",  x = 3350, y = 6750 },
+  { id = "dunmodr",        name = "Dun Modr",               zone = "Wetlands",             continent = "EK",  x = 2650, y = 5850 },
+  { id = "ironbandsdig",   name = "Ironband's Excavation Site", zone = "Loch Modan",       continent = "EK",  x = 3700, y = 4700 },
+  { id = "badlands",       name = "Badlands",               zone = "Badlands",             continent = "EK",  x = 3700, y = 4100 },
+  { id = "hillsbradfields", name = "Hillsbrad Fields",      zone = "Hillsbrad Foothills",  continent = "EK",  x = 2300, y = 7200 },
+  { id = "lashtail",       name = "Northern Stranglethorn", zone = "Stranglethorn Vale",   continent = "EK",  x = 1700, y = 1050 },
   -- Classic places the Forever additions connect to ----------------------------------------
   { id = "morgansvigil",   name = "Morgan's Vigil",         zone = "Burning Steppes",      continent = "EK",  x = 2900, y = 3600 },
   { id = "flamecrest",     name = "Flame Crest",            zone = "Burning Steppes",      continent = "EK",  x = 2300, y = 3700 },

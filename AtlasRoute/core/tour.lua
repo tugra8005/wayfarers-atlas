@@ -27,10 +27,14 @@ local INF = math.huge
 Tour.EXACT_BUDGET = 2 ^ 13 * 13 * 13 * 3
 
 -- Turn quest definitions into stops. quest = {id, name, giver, objectives = {place ids},
--- turnin, accepted = bool, work = seconds per objective}
+-- turnin, accepted = bool, work = seconds per objective, requires = {quest ids}}
+-- `requires`: quests in the same log that must be handed in before this one is picked up
+-- (a quest chain). Required quests that are not in the log count as already done.
 function Tour.stops(world, quests)
   local stops = {}
+  local turninOf, firstOf = {}, {}
   for _, q in ipairs(quests) do
+    firstOf[q.id] = #stops + 1
     local acceptIdx
     if not q.accepted then
       stops[#stops + 1] = { node = world:index(q.giver), quest = q.id, name = q.name,
@@ -52,6 +56,18 @@ function Tour.stops(world, quests)
       for _, i in ipairs(objIdx) do after[#after + 1] = i end
       stops[#stops + 1] = { node = world:index(q.turnin), quest = q.id, name = q.name,
                             kind = "turnin", work = 0, after = after }
+      turninOf[q.id] = #stops
+    end
+  end
+  for _, q in ipairs(quests) do
+    for _, r in ipairs(q.requires or {}) do
+      local t = turninOf[r]
+      if t then
+        for i = firstOf[q.id], #stops do
+          if stops[i].quest ~= q.id then break end
+          table.insert(stops[i].after, t)
+        end
+      end
     end
   end
   return stops

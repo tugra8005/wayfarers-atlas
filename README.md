@@ -87,7 +87,7 @@ Kısıtlar kenarın üzerindedir: fraksiyon, sınıf (druid uçuş ustası Night
 
 Alt sınır, gerekli kenarların ağırlıkları toplamıdır. Ağırlıklı Atlas'ta ışınlanmalar sonucu değiştirmedi, çünkü yalnızca takılınca atlamak için kullanılıyor ve bu haritada yürüyüş hiç takılmadı. Kırsal Postacı kurgusu ışınlanmaları akışın içinde kullanıyor; büyücüde süre düşüyor.
 
-**Görev turu, sezgisel ile kesin (rastgele görev alt kümeleri, 84 deneme):** 10 durağa kadar her denemede aynı sonuç. 11–13 durakta ortalama fark %0,18–0,57, en kötüsü %3,99. İkisi de 5 ms'nin altında.
+**Görev turu, sezgisel ile kesin (gerçek görevlerden rastgele alt kümeler, 83 deneme):** 8 durağa kadar her denemede aynı sonuç. 9–14 durakta ortalama fark %0–0,33, en kötüsü %3,38. İkisi de 7 ms'nin altında.
 
 ## Tanıtım sayfası
 
@@ -153,7 +153,7 @@ Forever'ın eklemeleri dört rehberden derlendi; çeliştikleri yerde oyunun can
 - **Yalnızca betada görülenler** (`unconfirmed`, varsayılan kapalı): Dalaran → Stormwind portalı, büyücü Teleport: Dalaran, Powderfuse uçuş ustası ve Farholde bağlantısı.
 - Forever'a özgü olmayan ama eksik olan Classic parçaları da eklendi: Burning Steppes ve Desolace uçuş ustaları, Nighthaven (yalnızca druid), Feathermoon feribotu, druid ve şaman ışınlanmaları, iki mühendislik aleti. Bu yeni parçaların bağlantıları da haritanın geri kalanı gibi yaklaşıktır.
 
-Gemi ve skyship yolculuk süreleri hiçbir kaynakta yok; tahmindir. Tidegear Coast uçuş noktasının hiç rotası olmadığı için eklenmedi; açılış gecesinin geçici portalları da eklenmedi. Koordinatlar bölge yerleşiminden **yaklaşık** olarak yerleştirildi, oyun dosyalarından okunmadı. Yolculuk ve bekleme süreleri de tahmindir. Algoritmalar bu sayılara bağlı değildir; yalnızca örnek sonuçlar bağlıdır. Dosya değiştirilerek başka bir veriyle plan yapılabilir. `data/quest_data.lua` bu bölgelerdeki görevlere benzeyen örnek kütüklerdir; adlar oyundaki başlıkların birebir aynısı değildir.
+Gemi ve skyship yolculuk süreleri hiçbir kaynakta yok; tahmindir. Tidegear Coast uçuş noktasının hiç rotası olmadığı için eklenmedi; açılış gecesinin geçici portalları da eklenmedi. Koordinatlar bölge yerleşiminden **yaklaşık** olarak yerleştirildi, oyun dosyalarından okunmadı. Yolculuk ve bekleme süreleri de tahmindir. Algoritmalar bu sayılara bağlı değildir; yalnızca örnek sonuçlar bağlıdır. Dosya değiştirilerek başka bir veriyle plan yapılabilir. `data/quest_data.lua` gerçek Classic görevleridir: 8 Alliance, 8 Horde (ör. The Night Watch, Northfold Manor, Noble Deaths, The Barrens Port; Hammerfall, Raising Spirits, Elixir of Agony, Hunting in Stranglethorn). Hepsi patch 4.0.3a'da kaldırıldığı için Wowpedia sayfaları Classic hâlini anlatır; görevi veren ve alan NPC'ler ile hedeflerin yeri görev, NPC ve yaratık sayfalarından alındı, her görevin sayfası `wiki` alanında. (warcraft.wiki.gg aynı sayfaları taşır, ama buradan erişilemedi.) Hedeflerdeki öldürme ya da toplama süresi (`work`) wikide yok, tahmindir. Bazı görevler bir zincirin parçasıdır: önceki adım yapılmış sayılır; iki adım da kütükteyse (`requires`) planlayıcı ilkini teslim etmeden ikincisini almaz.
 
 ## Çalıştırma
 
