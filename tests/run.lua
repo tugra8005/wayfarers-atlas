@@ -1,7 +1,7 @@
--- Test suite. Usage: luajit tests/run.lua   (also runs under `luajit -joff`, closer to WoW)
+-- Addon tests. Usage: luajit tests/run.lua   (also under `luajit -joff`, closer to WoW)
+-- The comparison algorithms have their own tests: luajit benchmark/tests.lua
 local root = arg[0]:match("^(.*)/tests/") or "."
 local ns = dofile(root .. "/tools/load.lua")(root)
-local gen = dofile(root .. "/tools/gen_fsm.lua")
 
 local passed, failed = 0, 0
 local function test(name, fn)
@@ -52,159 +52,103 @@ test("Atlas.java drops the last edge, and that edge is then uncovered", function
   end
 end)
 
--- Chinese Postman -------------------------------------------------------------------------
--- Brute force: Dijkstra over (node, set of covered edges). Exact for small m.
-local function bruteCPP(g, start)
-  local full = 2 ^ g.m - 1
-  local dist = { [start .. ":0"] = 0 }
-  local heap = ns.Heap.new()
-  heap:push(0, { start, 0 })
-  while not heap:empty() do
-    local d, s = heap:pop()
-    local key = s[1] .. ":" .. s[2]
-    if d <= dist[key] then
-      if s[2] == full then return d end
-      for _, l in ipairs(g.out[s[1]] or {}) do
-        local mask = s[2]
-        if math.floor(mask / 2 ^ l) % 2 == 0 then mask = mask + 2 ^ l end
-        local e = g.edges[l]
-        local nk = e.dest .. ":" .. mask
-        if d + e.weight < (dist[nk] or math.huge) then
-          dist[nk] = d + e.weight
-          heap:push(d + e.weight, { e.dest, mask })
-        end
-      end
-    end
-  end
-end
-
-test("CPP matches brute force on small weighted graphs", function()
-  local checked = 0
-  for seed = 1, 40 do
-    local states, inputs = 3 + seed % 3, 2 + seed % 2
-    local g = ns.FSM.parse(gen(states, inputs, 2, seed, true))
-    if g.m <= 14 then
-      math.randomseed(seed)
-      for l = 0, g.m - 1 do g.edges[l].weight = math.random(1, 9) end
-      local c = ns.CPP.solve(g, 0)
-      local b = bruteCPP(g, 0)
-      if b then
-        truthy(c, "cpp returned nil, seed " .. seed)
-        near(c.weight, b, "seed " .. seed)
-        checked = checked + 1
-      end
-    end
-  end
-  truthy(checked >= 20, "too few cases checked: " .. checked)
-end)
-
-test("CPP walk is contiguous, starts at 0, covers every edge, weight adds up", function()
+test("Atlas with weights covers every FSM edge with a contiguous walk from state 0", function()
   for _, f in ipairs(fixtures) do
     local g = ns.FSM.parse(read(FIX .. f .. ".fsm"))
-    local c = ns.CPP.solve(g, 0)
-    if c then
-      truthy(contiguous(g, c.path), f)
-      eq(g.edges[c.path[1]].source, 0, f)
-      eq(distinct(c.path), g.m, f)
-      local w = 0
-      for _, l in ipairs(c.path) do w = w + g.edges[l].weight end
-      near(w, c.weight, f)
-    end
+    local r = ns.AtlasPlan.coverFSM(g, 0)
+    -- the fixtures are not all strongly connected; Atlas covers what is reachable
+    truthy(r.covered >= distinct(select(2, ns.Atlas.run(g, true))), f .. " covers less than Atlas.java")
+    truthy(contiguous(g, r.path), f)
+    eq(g.edges[r.path[1]].source, 0, f)
+    local w = 0
+    for _, l in ipairs(r.path) do w = w + g.edges[l].weight end
+    near(w, r.weight, f)
   end
 end)
 
--- Weighted Atlas --------------------------------------------------------------------------
-test("Weighted Atlas covers everything and is never cheaper than the optimum", function()
-  for seed = 1, 25 do
-    local g = ns.FSM.parse(gen(5 + seed, 2 + seed % 4, 3, 1000 + seed, true))
-    math.randomseed(seed)
-    for l = 0, g.m - 1 do g.edges[l].weight = math.random(1, 20) end
-    local c = ns.CPP.solve(g, 0)
-    local w = ns.Coverage.run(g, 0)
-    if c then
-      eq(w.covered, g.m, "seed " .. seed)
-      truthy(w.weight >= c.weight - 1e-9, "beat the optimum, seed " .. seed)
-      local labels = {}
-      for _, s in ipairs(w.steps) do labels[#labels + 1] = s.edge end
-      truthy(contiguous(g, labels), "seed " .. seed)
-    end
-  end
-end)
-
-test("Weighted Atlas uses a teleport to reach an otherwise unreachable part", function()
-  -- 0 -> 1 -> 0 and an island 2 <-> 3 reachable only by a jump
-  local g = ns.FSM.new()
-  g:addEdge(0, 1, 0, 0, 1); g:addEdge(1, 0, 0, 0, 1)
-  g:addEdge(2, 3, 0, 0, 1); g:addEdge(3, 2, 0, 0, 1)
-  local without = ns.Coverage.run(g, 0)
-  eq(without.covered, 2)
-  local with = ns.Coverage.run(g, 0, { jumps = { { to = 2, cost = 5 } } })
-  eq(with.covered, 4)
-end)
-
-test("Rural postman equals the exact CPP when every edge is required", function()
-  for seed = 1, 15 do
-    local g = ns.FSM.parse(gen(4 + seed, 2 + seed % 3, 3, 500 + seed, true))
-    math.randomseed(seed)
-    for l = 0, g.m - 1 do g.edges[l].weight = math.random(1, 20) end
-    local c = ns.CPP.solve(g, 0)
-    local r = ns.Coverage.rpp(g, 0)
-    if c then near(r.weight, c.weight, "seed " .. seed); eq(r.covered, g.m) end
-  end
-end)
-
--- Router ----------------------------------------------------------------------------------
+-- The world and the Atlas planner ----------------------------------------------------------
 local world = ns.WorldData.build(ns.World)
+local AP = ns.AtlasPlan
 local A = { faction = "Alliance", speed = 11.2, hearth = "stormwind" }
 local H = { faction = "Horde", speed = 11.2, hearth = "orgrimmar" }
 
 local function legSum(legs) local s = 0; for _, l in ipairs(legs) do s = s + l.seconds end; return s end
-
-test("Route legs add up to the route time", function()
-  for _, pair in ipairs({ { "raptorgrounds", "theramore" }, { "nesingwary", "astranaar" }, { "darnassus", "lakeshire" } }) do
-    local t, legs = ns.Router.route(world, A, pair[1], pair[2], true)
-    near(legSum(legs), t, pair[1] .. "->" .. pair[2])
+local function modes(legs) local m = {}; for _, l in ipairs(legs) do m[#m + 1] = l.mode end; return table.concat(m, "+") end
+local function uses(legs, mode, toName)
+  for _, l in ipairs(legs) do
+    if l.mode == mode and (not toName or world.nodes[l.to].name == toName) then return true end
   end
-end)
-
-test("Factions only use their own flight masters and transports", function()
-  for _, prof in ipairs({ A, H }) do
-    for _, pair in ipairs({ { "stromgarde", "thunderbluff" }, { "feathermoon", "undercity" }, { "southshore", "gadgetzan" } }) do
-      local dist, prev, ctx = ns.Router.search(world, prof, world:index(pair[1]), true)
-      local _, state = ns.Router.best(dist, ctx, world:index(pair[2]))
-      local v = state
-      while prev[v] do
-        local e = prev[v].edge
-        truthy(not e.faction or e.faction == prof.faction, prof.faction .. " used " .. tostring(e.mode) .. " gated " .. tostring(e.faction))
-        v = prev[v].state
-      end
-    end
+  return false
+end
+local function pick(list, ids)
+  local r = {}
+  for _, id in ipairs(ids) do
+    local found
+    for _, q in ipairs(list) do if q.id == id then found = q end end
+    assert(found, "no sample quest with id " .. id)
+    r[#r + 1] = found
   end
-end)
+  return r
+end
+-- legs of a plan in order, as one list
+local function allTravel(plan)
+  local t = {}
+  for _, leg in ipairs(plan.legs) do for _, x in ipairs(leg.travel) do t[#t + 1] = x end end
+  return t
+end
+-- every leg starts where the previous one ended
+local function chained(start, legs)
+  local at = start
+  for _, l in ipairs(legs) do
+    if l.from ~= at then return false end
+    at = l.to
+  end
+  return true, at
+end
 
-test("Mage teleports only for mages; hearthstone at most once", function()
-  local t1 = ns.Router.route(world, { faction = "Alliance", speed = 11.2 }, "nesingwary", "astranaar")
-  local t2, legs = ns.Router.route(world, { faction = "Alliance", class = "MAGE", speed = 11.2 }, "nesingwary", "astranaar")
-  truthy(t2 < t1, "mage should be faster")
-  local tele = 0
-  for _, l in ipairs(legs) do if l.mode == "teleport" then tele = tele + 1 end end
-  truthy(tele >= 1, "mage route should teleport")
-  local _, hlegs = ns.Router.route(world, A, "nesingwary", "feathermoon", true)
-  local h = 0
-  for _, l in ipairs(hlegs) do if l.mode == "hearth" then h = h + 1 end end
-  truthy(h <= 1, "hearth used " .. h .. " times")
-end)
-
-test("Hearthstone never makes a route slower", function()
-  local ids = { "raptorgrounds", "theramore", "nesingwary", "astranaar", "uldaman", "mathystra", "gadgetzan" }
+test("Routes arrive at the destination, legs chain and add up", function()
+  local ids = { "raptorgrounds", "theramore", "nesingwary", "astranaar", "darnassus", "lakeshire", "valanaar", "gadgetzan" }
   for _, a in ipairs(ids) do
     for _, b in ipairs(ids) do
       if a ~= b then
-        local without = ns.Router.route(world, A, a, b, false)
-        local with = ns.Router.route(world, A, a, b, true)
-        truthy(with <= without + 1e-9, a .. "->" .. b)
+        local t, legs = AP.route(world, A, a, b)
+        truthy(t, a .. "->" .. b .. " unreachable")
+        local ok, at = chained(world:index(a), legs)
+        truthy(ok, a .. "->" .. b .. " legs do not chain")
+        eq(world.nodes[at].id, b, a .. "->" .. b .. " ends elsewhere")
+        near(legSum(legs), t, a .. "->" .. b)
       end
     end
+  end
+end)
+
+test("The travel graph holds only what the character may use", function()
+  for _, prof in ipairs({ A, H, { faction = "Horde", class = "MAGE", speed = 7 } }) do
+    local g = AP.travelGraph(world, prof)
+    for l = 1, g.m do
+      local e = g.edges[l]
+      if e.mode == "fly" or e.mode == "board" or e.mode == "boat" or e.mode == "zeppelin" then
+        -- find the world edge it came from and check its gate
+        for _, we in ipairs(world.adj[e.source]) do
+          if we.to == e.dest and we.mode == e.mode then
+            truthy(world:allowed(we, prof), prof.faction .. " got " .. e.mode .. " " .. world.nodes[e.source].id)
+          end
+        end
+      end
+      if e.mode == "teleport" then truthy(prof.class == "MAGE" or prof.class == "DRUID", "teleport for " .. tostring(prof.class)) end
+    end
+  end
+end)
+
+test("Mage teleports help mages; teleports are never cast in the air", function()
+  local t1 = AP.route(world, { faction = "Alliance", speed = 11.2 }, "nesingwary", "astranaar")
+  local t2, legs = AP.route(world, { faction = "Alliance", class = "MAGE", speed = 11.2 }, "nesingwary", "astranaar")
+  truthy(t2 < t1, "mage should be faster")
+  truthy(uses(legs, "teleport"), "mage route should teleport: " .. modes(legs))
+  local g = AP.travelGraph(world, { faction = "Alliance", class = "MAGE", speed = 11.2, hearth = "stormwind" })
+  for l = 1, g.m do
+    local e = g.edges[l]
+    if e.mode == "teleport" or e.mode == "hearth" then eq(world.nodes[e.source].kind, "ground") end
   end
 end)
 
@@ -216,83 +160,53 @@ test("Walking never crosses between continents", function()
   end
 end)
 
-test("Map coverage walks are valid and cover every flight link", function()
+test("Flight network: Atlas flies every link with one connected walk", function()
   for _, prof in ipairs({ A, H, { faction = "Alliance", class = "MAGE", speed = 11.2 } }) do
-    local g, jumps, req = ns.Coverage.fromWorld(world, prof)
-    local start = world:index(prof.faction == "Horde" and "orgrimmar" or "stormwind")
-    for _, res in ipairs({ ns.Coverage.run(g, start, { jumps = jumps }), ns.Coverage.rpp(g, start, { jumps = jumps }) }) do
-      eq(res.covered, req)
-      local at, w = start, 0
-      for _, s in ipairs(res.steps) do
-        if s.edge then
-          eq(g.edges[s.edge].source, at, "walk breaks")
-          at = g.edges[s.edge].dest
-          w = w + g.edges[s.edge].weight
-        else
-          truthy(world.nodes[at].kind == "ground", "teleport cast while flying")
-          at = jumps[s.jump].to
-          w = w + jumps[s.jump].cost
-        end
-      end
-      near(w, res.weight)
-      truthy(res.weight >= ns.Coverage.lowerBound(g) - 1e-9)
+    local start = prof.faction == "Horde" and "orgrimmar" or "stormwind"
+    local r = AP.cover(world, prof, start)
+    eq(r.covered, r.required, prof.faction)
+    local at, w, flown = world:index(start), 0, {}
+    for _, s in ipairs(r.steps) do
+      eq(s.from, at, "walk breaks")
+      at = s.to
+      w = w + s.seconds
     end
+    near(w, r.seconds)
   end
 end)
 
-local function pick(list, ids)
-  local r = {}
-  for _, id in ipairs(ids) do
-    local found
-    for _, q in ipairs(list) do if q.id == id then found = q end end
-    assert(found, "no sample quest with id " .. id)
-    r[#r + 1] = found
-  end
-  return r
-end
-
--- Forever additions ----------------------------------------------------------------------
-local function modes(legs) local m = {}; for _, l in ipairs(legs) do m[#m + 1] = l.mode end; return table.concat(m, "+") end
-local function uses(legs, mode, toName)
-  for _, l in ipairs(legs) do
-    if l.mode == mode and (not toName or world.nodes[l.to].name == toName) then return true end
-  end
-  return false
-end
-
 test("Skyborne start: both factions reach Dalaran, only Horde takes the Skywatcher skyship", function()
-  local tA, lA = ns.Router.route(world, { faction = "Alliance", speed = 7 }, "valanaar", "stormwind")
+  local tA, lA = AP.route(world, { faction = "Alliance", speed = 7 }, "valanaar", "stormwind")
   truthy(tA and uses(lA, "skyship", "Dalaran"), "Alliance from Valanaar: " .. modes(lA or {}))
-  local _, lH = ns.Router.route(world, { faction = "Horde", speed = 7 }, "valanaar", "thunderbluff")
+  local _, lH = AP.route(world, { faction = "Horde", speed = 7 }, "valanaar", "thunderbluff")
   truthy(uses(lH, "skyship", "Skywatcher Plateau"), "Horde from Valanaar: " .. modes(lH))
-  local _, lA2 = ns.Router.route(world, { faction = "Alliance", speed = 7 }, "valanaar", "thunderbluff")
+  local _, lA2 = AP.route(world, { faction = "Alliance", speed = 7 }, "valanaar", "thunderbluff")
   truthy(not uses(lA2, "skyship", "Skywatcher Plateau"), "Alliance used the Horde skyship")
 end)
 
 test("Beta-only routes are used only when asked for", function()
   local base = { faction = "Alliance", speed = 11.2 }
   local beta = { faction = "Alliance", speed = 11.2, unconfirmed = true }
-  local t1, l1 = ns.Router.route(world, base, "dalaran", "stormwind")
-  local t2, l2 = ns.Router.route(world, beta, "dalaran", "stormwind")
+  local t1, l1 = AP.route(world, base, "dalaran", "stormwind")
+  local t2, l2 = AP.route(world, beta, "dalaran", "stormwind")
   truthy(not uses(l1, "portal", "Stormwind City"), "portal used without the beta flag")
   truthy(uses(l2, "portal", "Stormwind City"), "portal not used with the beta flag: " .. modes(l2))
   truthy(t2 < t1)
-  local mage = { faction = "Horde", class = "MAGE", speed = 11.2 }
-  local _, lm = ns.Router.route(world, mage, "orgrimmar", "dalaran")
+  local _, lm = AP.route(world, { faction = "Horde", class = "MAGE", speed = 11.2 }, "orgrimmar", "dalaran")
   truthy(not uses(lm, "teleport", "Dalaran"), "beta Teleport: Dalaran used")
 end)
 
-test("Riverglades flight masters, Powderfuse boat and Menethil loop", function()
-  local _, l = ns.Router.route(world, A, "farholde", "thelsamar")
+test("Riverglades flight masters, Powderfuse boat and the one-way Menethil loop", function()
+  local _, l = AP.route(world, A, "farholde", "thelsamar")
   eq(modes(l), "fly")
-  local _, lh = ns.Router.route(world, H, "rogmar", "kargath")
+  local _, lh = AP.route(world, H, "rogmar", "kargath")
   eq(modes(lh), "fly")
-  local _, lb = ns.Router.route(world, { faction = "Horde", speed = 11.2 }, "steamwheedle", "powderfuse")
+  local _, lb = AP.route(world, { faction = "Horde", speed = 11.2 }, "steamwheedle", "powderfuse")
   eq(modes(lb), "boat")
-  -- the Menethil loop is one-way: Auberdine -> Menethil is direct, Menethil -> Auberdine goes round
-  local back = ns.Router.route(world, A, "auberdine", "menethil", false)
-  local there = ns.Router.route(world, A, "menethil", "auberdine", false)
-  truthy(there > back, "loop should make Menethil -> Auberdine slower")
+  local noHearth = { faction = "Alliance", speed = 11.2 }
+  local back = AP.route(world, noHearth, "auberdine", "menethil")
+  local there = AP.route(world, noHearth, "menethil", "auberdine")
+  truthy(there > back, "the loop should make Menethil -> Auberdine slower")
 end)
 
 test("Walled-off zones are entered only through their pass", function()
@@ -314,99 +228,95 @@ test("Walled-off zones are entered only through their pass", function()
 end)
 
 test("Druids: Teleport: Moonglade and the druid-only flight master", function()
-  local tD, lD = ns.Router.route(world, { faction = "Horde", class = "DRUID", speed = 11.2 }, "gadgetzan", "nighthaven")
-  local tW = ns.Router.route(world, { faction = "Horde", class = "WARRIOR", speed = 11.2 }, "gadgetzan", "nighthaven")
+  local tD, lD = AP.route(world, { faction = "Horde", class = "DRUID", speed = 11.2 }, "gadgetzan", "nighthaven")
+  local tW = AP.route(world, { faction = "Horde", class = "WARRIOR", speed = 11.2 }, "gadgetzan", "nighthaven")
   truthy(uses(lD, "teleport", "Nighthaven"))
   truthy(tD < tW)
-  local _, lW = ns.Router.route(world, { faction = "Alliance", class = "WARRIOR", speed = 11.2 }, "ruttheran", "nighthaven")
+  local _, lW = AP.route(world, { faction = "Alliance", class = "WARRIOR", speed = 11.2 }, "ruttheran", "nighthaven")
   truthy(not uses(lW, "fly", "Nighthaven"), "non-druid landed at the druid flight master: " .. modes(lW))
 end)
 
-test("Several one-use teleports: each spent at most once, devices need the item", function()
+test("One-use teleports: each spent at most once, devices need the item", function()
   local shaman = { faction = "Horde", class = "SHAMAN", speed = 11.2, hearth = "orgrimmar",
                    items = { [18984] = true, [18986] = true } }
-  local ctx = ns.Router.context(world, shaman)
-  eq(#ctx.L, 4, "hearth, Astral Recall, two devices")
-  eq(#ns.Router.context(world, { faction = "Horde", class = "SHAMAN", hearth = "orgrimmar" }).L, 2)
-  local _, legs = ns.Router.route(world, shaman, "stromgarde", "gadgetzan")
+  eq(#AP.limited(world, shaman), 4, "hearth, Astral Recall, two devices")
+  eq(#AP.limited(world, { faction = "Horde", class = "SHAMAN", hearth = "orgrimmar" }), 2)
+  local _, legs = AP.route(world, shaman, "stromgarde", "gadgetzan")
   truthy(uses(legs, "device", "Gadgetzan"), "transporter not used: " .. modes(legs))
-  local plan = ns.Tour.plan(world, shaman, "undercity", pick(ns.QuestData.horde, { "hunting", "returntb", "agony", "gromgol" }))
-  local count = {}
-  for _, leg in ipairs(plan.legs) do
-    for _, t in ipairs(leg.travel) do
-      if t.mode == "hearth" or t.mode == "device" or (t.name == "Astral Recall") then
+  for _, start in ipairs({ "undercity", "valanaar", "gadgetzan" }) do
+    local plan = AP.plan(world, shaman, start, ns.QuestData.horde)
+    local count = {}
+    for _, t in ipairs(allTravel(plan)) do
+      if t.mode == "hearth" or t.mode == "device" or t.name == "Astral Recall" then
         count[t.name] = (count[t.name] or 0) + 1
       end
     end
+    for name, c in pairs(count) do eq(c, 1, start .. ": " .. name .. " uses") end
   end
-  for name, c in pairs(count) do truthy(c == 1, name .. " used " .. c .. " times") end
 end)
 
--- Tour ------------------------------------------------------------------------------------
-local function permutations(n, fn)
-  local a, used = {}, {}
-  local function rec(k)
-    if k > n then fn(a); return end
-    for i = 1, n do
-      if not used[i] then used[i] = true; a[k] = i; rec(k + 1); used[i] = false end
+-- Quest tours -------------------------------------------------------------------------------
+local function valid(plan)
+  local pos = {}
+  for k, i in ipairs(plan.order) do pos[i] = k end
+  for k, i in ipairs(plan.order) do
+    for _, p in ipairs(plan.stops[i].after) do
+      if (pos[p] or math.huge) > k then return false, plan.stops[i].name .. " " .. plan.stops[i].kind end
     end
   end
-  rec(1)
+  return true
 end
 
-
-test("Exact tour equals brute force over all orders (with precedence and hearthstone)", function()
+test("Atlas tours visit every stop, in a valid order, along one connected walk", function()
   local cases = {
-    { A, "ironforge", pick(ns.QuestData.alliance, { "plea", "jameshyal", "barrensport" }) },
-    { A, "stormwind", pick(ns.QuestData.alliance, { "nightwatch", "jameshyal", "ironband" }) },
-    { H, "orgrimmar", pick(ns.QuestData.horde, { "hammerfall", "raisingspirits", "returntb" }) },
-    { { faction = "Horde", class = "MAGE", speed = 7 }, "crossroads", pick(ns.QuestData.horde, { "hunting", "returntb", "hammerfall" }) },
+    { A, "ironforge", ns.QuestData.alliance },
+    { H, "undercity", ns.QuestData.horde },
+    { { faction = "Alliance", class = "MAGE", speed = 11.2, hearth = "stormwind" }, "darkshire", ns.QuestData.alliance },
+    { { faction = "Horde", class = "DRUID", speed = 7 }, "thunderbluff", ns.QuestData.horde },
     { { faction = "Horde", class = "SHAMAN", speed = 11.2, hearth = "orgrimmar", items = { [18984] = true, [18986] = true } },
-      "undercity", pick(ns.QuestData.horde, { "hunting", "agony", "hillsbrad" }) },
+      "valanaar", ns.QuestData.horde },
   }
   for ci, c in ipairs(cases) do
-    local plan = ns.Tour.plan(world, c[1], c[2], c[3], { method = "exact" })
-    local stops = plan.stops
-    local best = math.huge
-    permutations(#stops, function(order)
-      if ns.Tour.feasible(order, stops) then
-        local cost = ns.Tour.orderCost(plan.matrices, order, stops)
-        if cost < best then best = cost end
-      end
-    end)
-    near(plan.seconds, best, "case " .. ci)
+    local plan = AP.plan(world, c[1], c[2], c[3])
+    eq(#plan.order, #plan.stops, "case " .. ci .. " stops")
+    eq(#plan.unreachable, 0, "case " .. ci .. " unreachable")
+    truthy(valid(plan), "case " .. ci .. " order")
+    -- legs chain from the start through every stop
+    local at, total = world:index(c[2]), 0
+    for _, leg in ipairs(plan.legs) do
+      local ok, last = chained(at, leg.travel)
+      truthy(ok, "case " .. ci .. ": travel to " .. leg.stop.name .. " does not chain")
+      eq(last, leg.stop.node, "case " .. ci .. ": arrives elsewhere")
+      at = leg.stop.node
+      total = total + leg.seconds + leg.stop.work
+    end
+    near(total, plan.seconds, "case " .. ci .. " time")
   end
 end)
 
 test("Quest chains: Raising Spirits is picked up only after Hammerfall is handed in", function()
-  for _, m in ipairs({ "exact", "heuristic" }) do
-    local plan = ns.Tour.plan(world, H, "undercity", pick(ns.QuestData.horde, { "raisingspirits", "hammerfall", "agony" }), { method = m })
+  for _, start in ipairs({ "undercity", "hammerfall", "orgrimmar" }) do
+    local plan = AP.plan(world, H, start, pick(ns.QuestData.horde, { "raisingspirits", "hammerfall", "agony" }))
     local pos = {}
     for k, leg in ipairs(plan.legs) do pos[leg.stop.quest .. ":" .. leg.stop.kind] = k end
-    truthy(pos["hammerfall:turnin"] < pos["raisingspirits:accept"], m)
+    truthy(pos["hammerfall:turnin"] < pos["raisingspirits:accept"], start)
   end
 end)
 
-test("Every sample quest names places on the map", function()
+test("Every sample quest is on the map and has its wiki page", function()
   for _, side in ipairs({ "alliance", "horde" }) do
-    local stops = ns.Tour.stops(world, ns.QuestData[side])
+    local stops = AP.stops(world, ns.QuestData[side])
     truthy(#stops > 0, side)
     for _, q in ipairs(ns.QuestData[side]) do truthy(q.wiki, q.id .. " has no wiki page") end
   end
 end)
 
-test("Tour orders respect accept -> objective -> turn-in", function()
-  for _, m in ipairs({ "exact", "heuristic" }) do
-    local plan = ns.Tour.plan(world, A, "ironforge", pick(ns.QuestData.alliance, { "nightwatch", "northfold", "nobledeaths", "plea" }), { method = m })
-    truthy(ns.Tour.feasible(plan.order, plan.stops), m)
-    eq(#plan.order, #plan.stops, m)
-  end
-end)
-
-test("Heuristic is never better than exact", function()
-  local plan1 = ns.Tour.plan(world, A, "menethil", pick(ns.QuestData.alliance, { "jameshyal", "northfold", "badlandsrun", "plea", "nightwatch" }), { method = "exact" })
-  local plan2 = ns.Tour.plan(world, A, "menethil", pick(ns.QuestData.alliance, { "jameshyal", "northfold", "badlandsrun", "plea", "nightwatch" }), { method = "heuristic" })
-  truthy(plan2.seconds >= plan1.seconds - 1e-9)
+test("A stop the character cannot reach is reported, not silently dropped", function()
+  -- Teldrassil is an island reached only by Alliance boats and the Alliance portal.
+  local plan = AP.plan(world, { faction = "Horde", speed = 11.2 }, "orgrimmar",
+                       { { id = "x", name = "Visit Darnassus", giver = "orgrimmar", turnin = "darnassus" } })
+  eq(#plan.unreachable, 1)
+  eq(plan.unreachable[1].kind, "turnin")
 end)
 
 -- In-game shell with a stubbed WoW API -----------------------------------------------------
@@ -438,6 +348,8 @@ test("Addon loads and plans with a stubbed WoW API", function()
       chunk("AtlasRoute", addonNs)
     end
   end
+  truthy(not addonNs.Router and not addonNs.Tour and not addonNs.CPP and not addonNs.Coverage,
+         "the addon must plan with Atlas only")
   for _, f in ipairs(frames) do
     if f.events.ADDON_LOADED then f.scripts.OnEvent(f, "ADDON_LOADED", "AtlasRoute") end
   end
@@ -453,7 +365,7 @@ test("Addon loads and plans with a stubbed WoW API", function()
   local text = table.concat(chat, "\n")
   truthy(text:find("Loaded 8 sample quests"), "demo")
   truthy(text:find("Planning from Menethil Harbor %(Alliance/MAGE, hearth: stormwind%)"), "profile")
-  truthy(text:find("stops, .- total"), "plan output:\n" .. text:sub(-800))
+  truthy(text:find("stops, .- total %(Atlas"), "plan output:\n" .. text:sub(-800))
   truthy(text:find("Menethil Harbor %-> Astranaar"), "route")
   truthy(not text:find("error"), "error in output")
 end)

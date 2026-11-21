@@ -1,4 +1,4 @@
--- Command-line demo of the quest planner (same code the addon runs).
+-- Command-line demo of the quest planner (same code the addon runs: Atlas, core/atlasplan.lua).
 -- Usage: luajit tools/plan.lua [alliance|horde] [start place id] [flags...]
 --   flags: mage | druid | shaman   class
 --          engineer                carries Dimensional Ripper - Everlook and Ultrasafe Transporter
@@ -28,13 +28,13 @@ local quests = horde and ns.QuestData.horde or ns.QuestData.alliance
 local function fmt(s) s = math.floor(s + 0.5); return ("%dm %02ds"):format(math.floor(s / 60), s % 60) end
 
 local t0 = os.clock()
-local plan = ns.Tour.plan(world, prof, start, quests)
+local plan = ns.AtlasPlan.plan(world, prof, start, quests)
 local on = {}
 for _, f in ipairs({ "engineer", "flier", "beta" }) do if flags[f] then on[#on + 1] = f end end
-print(("%s%s%s from %s, hearthstone: %s, %d stops, %s method, %.0f ms"):format(
+print(("%s%s%s from %s, hearthstone: %s, %d stops, Atlas in %d rounds, %.0f ms"):format(
   prof.faction, prof.class and (" " .. prof.class:lower()) or "",
   #on > 0 and (" [" .. table.concat(on, ", ") .. "]") or "", world.nodes[world:index(start)].name,
-  prof.hearth or "none", #plan.stops, plan.method, 1000 * (os.clock() - t0)))
+  prof.hearth or "none", #plan.stops, plan.rounds, 1000 * (os.clock() - t0)))
 print(("total %s (travel + time spent at objectives)\n"):format(fmt(plan.seconds)))
 for k, leg in ipairs(plan.legs) do
   local s = leg.stop

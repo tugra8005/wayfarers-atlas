@@ -408,7 +408,7 @@ footer .authors { font-family: var(--fell); font-size: 17px; color: #d9c595; mar
     <div id="panel-cover" role="tabpanel" aria-labelledby="tab-cover" hidden>
       <section>
         <h2>Ride every flight path</h2>
-        <p class="note">Every flight connection your faction can use, flown once in each direction. This is the problem Atlas was written for: cover every edge of a graph in one walk. Three ways to do it, on the same map:</p>
+        <p class="note">Every flight connection your faction can use, flown once in each direction. This is the problem Atlas was written for: cover every edge of a graph in one walk. Two runs of Atlas on the same map:</p>
         <div class="banners" role="group" aria-label="Faction">
           <button class="banner alliance" data-faction="Alliance" aria-pressed="true">Alliance</button>
           <button class="banner horde" data-faction="Horde" aria-pressed="false">Horde</button>
@@ -420,7 +420,7 @@ footer .authors { font-family: var(--fell); font-size: 17px; color: #d9c595; mar
       </section>
       <section>
         <div id="cmp"><p class="empty">The comparison appears here.</p></div>
-        <p class="note">Atlas is Savaş Takan's algorithm, ported to Lua. The weighted Atlas scores chains by new edges, then by time, and can jump with teleports. The Rural Postman joins the flight network's pieces, balances it with a min-cost flow and walks an Euler path. The lower bound is every flight flown once.</p>
+        <p class="note">Atlas is Savaş Takan's algorithm, ported to Lua. The 2020 run is his code as written: it covers every edge of the travel graph and counts each one as one step. Atlas with travel times covers the flight links and weighs every edge by its time, as the planner does for quests. The lower bound is every flight flown once.</p>
       </section>
     </div>
   </aside>
@@ -443,12 +443,12 @@ footer .authors { font-family: var(--fell); font-size: 17px; color: #d9c595; mar
 
   var TIPS = [
     "A flight with three hops is one trip to the flight master, not three. The planner counts it that way.",
-    "Your hearthstone is used once per journey, on the leg where it saves the most time.",
+    "Your hearthstone is used at most once per journey. After that, Atlas plans as if it were on cooldown.",
     "The Menethil boat runs a loop. Menethil to Auberdine calls at Southshore first; the way back is direct.",
     "Mages can teleport from anywhere on the ground, but not while on a gryphon.",
     "Druids have their own flight master in Moonglade. Nobody else may land there.",
     "Skyborne travellers leave Valanaar by skyship: to Dalaran for everyone, to Skywatcher Plateau for the Horde.",
-    "Up to thirteen stops, the order is proven best. Past that, a heuristic takes over and is usually right.",
+    "Every flight, boat, zeppelin and teleport is an edge, and every quest stop is an edge Atlas must cover.",
     "Atlas was written to test state machines. Here it rides gryphons instead."
   ];
 
@@ -1196,8 +1196,8 @@ footer .authors { font-family: var(--fell); font-size: 17px; color: #d9c595; mar
 
     var flown = byMode.fly || 0;
     say(r.stops + " stops in " + mins(r.seconds) + " minutes, " + mins(flown) + " of them in the air. " +
-      (r.method === "exact" ? "This order is proven fastest." : "Order found by the heuristic.") +
-      " Worked out in " + Math.round(r.ms) + " ms.");
+      "Planned by Atlas in " + r.rounds + " rounds, " + Math.round(r.ms) + " ms.");
+    if (r.unreachable && r.unreachable.length) say("Out of reach for this character: " + esc(r.unreachable.join(", ")) + ".");
     var used = [];
     r.steps.forEach(function (st) { st.travel.forEach(function (t) { if (MAGIC[t.mode] && t.mode !== "portal") used.push(t.name || MODE[t.mode]); }); });
     if (used.length) say("Spends " + esc(used.join(", ")) + ".");
@@ -1230,7 +1230,7 @@ footer .authors { font-family: var(--fell); font-size: 17px; color: #d9c595; mar
     call("cover", q).then(function (r) {
       btn.disabled = false; btn.textContent = "Work it out";
       lastCover = r;
-      var rows = [["atlas", "Atlas"], ["weighted", "Weighted Atlas"], ["postman", "Rural Postman"]];
+      var rows = [["atlas2020", "Atlas (2020, every edge one step)"], ["atlas", "Atlas with travel times"]];
       var html = '<table class="cmp"><thead><tr><th>Method</th><th>Time</th><th>Flights</th><th>Map</th></tr></thead><tbody>';
       rows.forEach(function (row) {
         var m = r.methods[row[0]];
@@ -1238,13 +1238,12 @@ footer .authors { font-family: var(--fell); font-size: 17px; color: #d9c595; mar
           '</td><td><button data-m="' + row[0] + '">Draw</button></td></tr>';
       });
       html += "<tr><td>Lower bound</td><td>" + fmt(r.lowerBound) + "</td><td></td><td></td></tr></tbody></table>";
-      var a = r.methods.atlas.seconds, p = r.methods.postman.seconds;
       document.getElementById("cmp").innerHTML = html;
       Array.prototype.forEach.call(document.querySelectorAll("#cmp button"), function (b) {
         b.addEventListener("click", function () { drawCover(b.getAttribute("data-m")); });
       });
-      say("Atlas " + fmt(a) + ", weighted Atlas " + fmt(r.methods.weighted.seconds) + ", Rural Postman " + fmt(p) + ".");
-      drawCover("postman");
+      say("Atlas 2020: " + fmt(r.methods.atlas2020.seconds) + ". Atlas with travel times: " + fmt(r.methods.atlas.seconds) + ".");
+      drawCover("atlas");
     }).catch(function (e) {
       btn.disabled = false; btn.textContent = "Work it out";
       say("The planner stopped: " + esc(e.message));
@@ -1265,10 +1264,10 @@ footer .authors { font-family: var(--fell); font-size: 17px; color: #d9c595; mar
       at = st.to;
     });
     var parts = buildSegments(segs);
-    parts.forEach(function (p) { p.vis.style.opacity = which === "atlas" ? ".55" : ""; });
+    parts.forEach(function (p) { p.vis.style.opacity = which === "atlas2020" ? ".5" : ""; });
     var who = coverWho();
     idleAt(document.getElementById("cstart").value, who);
-    travel(parts.map(function (p) { return { seg: p }; }), who, { maxMs: which === "atlas" ? 45000 : 30000 });
+    travel(parts.map(function (p) { return { seg: p }; }), who, { maxMs: which === "atlas2020" ? 45000 : 30000 });
   }
 
   // Developer view: AtlasRoute.html#sprites draws every figure for every class.

@@ -15,7 +15,7 @@
 --   /ar beta on|off         also use routes only reported from the Forever beta
 local addonName, ns = ...
 
-local World, Router, Tour = ns.World, ns.Router, ns.Tour
+local World, AtlasPlan = ns.World, ns.AtlasPlan
 local world -- built on ADDON_LOADED
 
 local MODE_COLOR = {
@@ -116,7 +116,10 @@ local function describeTravel(travel)
 end
 
 local function printPlan(plan)
-  out(("%d stops, %s total (%s)"):format(#plan.order, fmtTime(plan.seconds), plan.method))
+  out(("%d stops, %s total (Atlas, %d rounds)"):format(#plan.order, fmtTime(plan.seconds), plan.rounds))
+  if #plan.unreachable > 0 then
+    out(("%d stops cannot be reached by this character and were left out."):format(#plan.unreachable))
+  end
   for k, leg in ipairs(plan.legs) do
     local s = leg.stop
     out(("%2d. [%s] %s - %s  (%s)"):format(k, s.kind, s.name, world.nodes[s.node].name, fmtTime(leg.seconds)))
@@ -143,7 +146,7 @@ local function plan()
   out(("Planning from %s (%s%s, hearth: %s)..."):format(world.nodes[world:index(from)].name,
       prof.faction or "?", prof.class and ("/" .. prof.class) or "", prof.hearth or "none"))
   job = coroutine.create(function()
-    return Tour.plan(world, prof, from, AtlasRouteDB.quests, { yield = coroutine.yield })
+    return AtlasPlan.plan(world, prof, from, AtlasRouteDB.quests, { yield = coroutine.yield })
   end)
 end
 ns.plan = plan
@@ -207,7 +210,7 @@ function commands.route(rest)
   if not to then out(("Unknown or ambiguous place (%d matches)."):format(cands and #cands or 0)); return end
   local from = startPlace()
   if not from then out("Can't tell where you are. Use /ar from <place>."); return end
-  local t, legs = Router.route(world, profile(), from, to.id, true)
+  local t, legs = AtlasPlan.route(world, profile(), from, to.id)
   if not t then out("No route."); return end
   out(("%s -> %s: %s"):format(world.nodes[world:index(from)].name, to.name, fmtTime(t)))
   out("  " .. describeTravel(legs))

@@ -151,7 +151,7 @@ function B.plan(q)
   local quests = {}
   for _, qd in ipairs(pool) do if want[qd.id] then quests[#quests + 1] = qd end end
   local t0 = os.clock()
-  local plan = ns.Tour.plan(w, prof, o.start, quests, { method = o.method })
+  local plan = ns.AtlasPlan.plan(w, prof, o.start, quests)
   local ms = (os.clock() - t0) * 1000
   local steps = array()
   for k, leg in ipairs(plan.legs) do
@@ -159,71 +159,76 @@ function B.plan(q)
     steps[k] = { kind = s.kind, quest = s.quest, name = s.name, place = w.nodes[s.node].id,
                  work = s.work, seconds = leg.seconds, travel = legsOut(w, leg.travel) }
   end
-  -- what the same order would cost with no teleports at all, for comparison
-  return json({ seconds = plan.seconds, method = plan.method, stops = #plan.stops, ms = ms,
-                steps = steps })
+  local missing = array()
+  for _, st in ipairs(plan.unreachable) do missing[#missing + 1] = st.name end
+  return json({ seconds = plan.seconds, method = "atlas", rounds = plan.rounds, stops = #plan.stops,
+                ms = ms, steps = steps, unreachable = missing })
 end
 
 -- Single route ----------------------------------------------------------------------------
 function B.route(q)
   local o = parse(q)
   local w = getWorld()
-  local t, legs = ns.Router.route(w, profileFrom(o), o.from, o.to, true)
+  local t, legs = ns.AtlasPlan.route(w, profileFrom(o), o.from, o.to)
   if not t then return json({ error = "No route between those places for this character." }) end
   return json({ seconds = t, travel = legsOut(w, legs) })
 end
 
--- Flight-network coverage: Atlas, weighted Atlas, Rural Postman -----------------------------
+-- Flight-network coverage: Atlas as written (2020, every edge one step) and Atlas with
+-- travel times (core/atlasplan.lua), on the same travel graph.
 function B.cover(q)
   local o = parse(q)
   local w = getWorld()
   local prof = profileFrom(o)
-  local g, jumps, req = ns.Coverage.fromWorld(w, prof)
-  local s = w:index(o.start)
+  local function id(node)
+    local n = w.nodes[node]
+    return n.kind == "air" and w.nodes[n.ground].id or n.id
+  end
   local function stepsOut(list)
     local out = array()
     for _, st in ipairs(list) do
-      if st.edge then
-        local e = g.edges[st.edge]
-        local a, b = w.nodes[e.source], w.nodes[e.dest]
-        if e.mode ~= "board" and e.mode ~= "land" then
-          out[#out + 1] = { mode = e.mode, from = a.kind == "air" and w.nodes[a.ground].id or a.id,
-                            to = b.kind == "air" and w.nodes[b.ground].id or b.id,
-                            seconds = e.weight, required = e.required }
-        end
-      else
-        local j = jumps[st.jump]
-        out[#out + 1] = { mode = "teleport", name = j.name, to = w.nodes[j.to].id, seconds = j.cost }
+      if st.mode ~= "board" and st.mode ~= "land" and st.mode ~= "start" then
+        out[#out + 1] = { mode = st.mode, name = st.name, from = id(st.from), to = id(st.to),
+                          seconds = st.seconds }
       end
     end
     return out
   end
-  local result = { required = req, lowerBound = ns.Coverage.lowerBound(g), methods = {} }
-  -- Atlas as written (Java port): starts on the first edge leaving the start
+  local result = { methods = {} }
+
+  -- Atlas with travel times
   do
     local t0 = os.clock()
-    local first = g.out[s][1]
-    local p = ns.Atlas.longestPath(g, first)
-    local list, seen, covered, weight = {}, {}, 0, 0
-    for _, l in ipairs(p) do
-      list[#list + 1] = { edge = l }
-      weight = weight + g.edges[l].weight
-      if g.edges[l].required and not seen[l] then seen[l] = true; covered = covered + 1 end
+    local r = ns.AtlasPlan.cover(w, prof, o.start)
+    result.required = r.required
+    result.methods.atlas = { seconds = r.seconds, covered = r.covered, rounds = r.rounds,
+                             ms = (os.clock() - t0) * 1000, steps = stepsOut(r.steps) }
+  end
+  -- Atlas as written: the same graph as an FSM, every edge costs one step
+  do
+    local t0 = os.clock()
+    local tg = ns.AtlasPlan.travelGraph(w, prof)
+    local fsm = ns.FSM.new()
+    local first
+    local startNode = w:index(o.start)
+    for l = 1, tg.m do
+      local e = tg.edges[l]
+      local fl = fsm:addEdge(e.source, e.dest, 0, 0, e.weight)
+      fsm.edges[fl].mode, fsm.edges[fl].name = e.mode, e.name
+      if e.source == startNode and not first then first = fl end
     end
-    result.methods.atlas = { seconds = weight, covered = covered, ms = (os.clock() - t0) * 1000,
-                             steps = stepsOut(list) }
-  end
-  do
-    local t0 = os.clock()
-    local r = ns.Coverage.run(g, s, { jumps = jumps })
-    result.methods.weighted = { seconds = r.weight, covered = r.covered, ms = (os.clock() - t0) * 1000,
-                                steps = stepsOut(r.steps) }
-  end
-  do
-    local t0 = os.clock()
-    local r = ns.Coverage.rpp(g, s, { jumps = jumps })
-    result.methods.postman = { seconds = r.weight, covered = r.covered, ms = (os.clock() - t0) * 1000,
-                               steps = stepsOut(r.steps) }
+    local path = ns.Atlas.longestPath(fsm, first)
+    local list, seen, covered, weight, lb = {}, {}, 0, 0, 0
+    for _, l in ipairs(path) do
+      local e = fsm.edges[l]
+      list[#list + 1] = { mode = e.mode, name = e.name, from = e.source, to = e.dest, seconds = e.weight }
+      weight = weight + e.weight
+      if e.mode == "fly" and not seen[l] then seen[l] = true; covered = covered + 1 end
+    end
+    for l = 0, fsm.m - 1 do if fsm.edges[l].mode == "fly" then lb = lb + fsm.edges[l].weight end end
+    result.lowerBound = lb
+    result.methods.atlas2020 = { seconds = weight, covered = covered, ms = (os.clock() - t0) * 1000,
+                                 steps = stepsOut(list) }
   end
   return json(result)
 end

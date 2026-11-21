@@ -5,14 +5,10 @@
 ## Version: 0.1.0
 ## SavedVariables: AtlasRouteDB
 
-core\heap.lua
 core\fsm.lua
 core\atlas.lua
 core\world.lua
-core\router.lua
-core\tour.lua
-core\cpp.lua
-core\coverage.lua
+core\atlasplan.lua
 data\world_data.lua
 data\quest_data.lua
 ui\addon.lua
