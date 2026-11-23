@@ -1,0 +1,16 @@
+## Interface: 120105
+## Title: AtlasRoute
+## Notes: Plans the fastest route through your quest log with walking, flight paths and the hearthstone, from the game's own data.
+## Author: Alparslan Tuğra ŞAHİN, Abdülbaki BAYIR, Seyyid Abdülbaki BOZKURT
+## Version: 0.2.0
+## SavedVariables: AtlasRouteDB
+
+core\fsm.lua
+core\atlas.lua
+core\world.lua
+core\atlasplan.lua
+data\retail_taxi.lua
+data\retail_quests.lua
+core\retail.lua
+ui\retail.lua
+ui\view.lua

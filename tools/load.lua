@@ -1,9 +1,10 @@
 -- Loads the addon's files outside the game the same way WoW does: each file listed in
 -- AtlasRoute.toc is run with (addonName, namespaceTable) as its varargs.
--- Usage from another script:  local ns = dofile(<repo>/tools/load.lua)(<repo>)
-return function(root)
+-- Usage from another script:  local ns = dofile(<repo>/tools/load.lua)(<repo>[, toc])
+--   toc: "AtlasRoute.toc" (Forever, the default) or "AtlasRoute_Mainline.toc" (retail)
+return function(root, tocName)
   local ns = {}
-  local toc = assert(io.open(root .. "/AtlasRoute/AtlasRoute.toc")):read("*a")
+  local toc = assert(io.open(root .. "/AtlasRoute/" .. (tocName or "AtlasRoute.toc"))):read("*a")
   for line in toc:gmatch("[^\r\n]+") do
     if not line:match("^%s*#") and line:match("%.lua%s*$") then
       local rel = line:gsub("\\", "/"):gsub("%s+$", "")

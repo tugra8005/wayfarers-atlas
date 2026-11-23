@@ -136,6 +136,56 @@ Fraksiyon (`UnitFactionGroup`), sınıf (`UnitClass`), hearthstone'un bağlı ol
 
 **Doğrulanmayanlar.** Eklenti gerçek oyun istemcisinde çalıştırılmadı. WoW API'si taklit edilerek (`tests/run.lua`, son test) komutlar, profil okuma ve coroutine'le planlama sınandı. Classic istemcisi görev koordinatı vermediği için görevler elle girilir.
 
+## Retail (ücretsiz deneme sürümü)
+
+Eklenti, Blizzard'ın ücretsiz deneme sürümünün (Free Trial, 20. seviyeye kadar) çalıştığı güncel istemcide de (retail, 12.x) çalışır. Retail istemcisi `AtlasRoute_Mainline.toc` dosyasını yükler, Forever ise `AtlasRoute.toc` dosyasını yüklemeye devam eder. İki sürüm de aynı Atlas planlayıcısını (`core/atlasplan.lua`) kullanır; yalnızca dünya grafı farklıdır.
+
+Retail'de elle kurulmuş bir harita yoktur. Graf her komutta oyunun kendi verisinden yeniden kurulur (`core/retail.lua`, oyunu okuyan kısım `ui/retail.lua`):
+
+| Veri | Kaynak |
+|---|---|
+| uçuş noktalarının yeri, uçuş hatları ve uzunlukları | oyunun tabloları (TaxiNodes, TaxiPath, TaxiPathNode) → `data/retail_taxi.lua` |
+| hangi uçuş noktalarını keşfettiğiniz, fraksiyonları | canlı istemci, `C_TaxiMap.GetTaxiNodesForMap` |
+| kütükteki görevlerin hedefi ve teslim yeri | canlı istemci (`C_QuestLog.GetQuestsOnMap`, `GetNextWaypoint`); istemci haritada göstermiyorsa oyunun görev haritası tabloları (QuestPOIBlob, QuestPOIPoint) → `data/retail_quests.lua` |
+| görev verenler (haritadaki "!" işaretleri) | canlı istemci, `C_QuestLine.GetAvailableQuestLines` (Blizzard'ın kendi haritasının kullandığı çağrı) |
+| bulunduğunuz yer | `UnitPosition` |
+| uçuş süreleri | oyunda ölçülür; ölçülene kadar yol uzunluğu ÷ koşu hızının %434'ü (≈ 30,4 yd/sn, warcraft.wiki.gg "Flight path") |
+| hearthstone'un indiği yer | oyunda kaydedilir (hanciye bağlarken ya da taşı kullanınca); bekleme süresi `C_Item.GetItemCooldown` |
+| yer hızı | binekteyken ölçülür (`GetUnitSpeed`); ölçülene kadar koşu hızı |
+
+Tablolar build **12.1.5.70961** içindir ve `tools/extract_retail.py` ile wago.tools'un CSV dışa aktarımlarından üretilir; elle yazılmış koordinat ya da süre yoktur. Yeni bir build için:
+
+```bash
+python tools/extract_retail.py <CSV klasörü> <build>
+```
+
+(`https://wago.tools/db2/<tablo>/csv?build=<build>`: TaxiNodes, TaxiPath, TaxiPathNode, QuestPOIBlob, QuestPOIPoint.)
+
+### Oyunda gösterim
+
+1. `AtlasRoute/` klasörünü `World of Warcraft/_retail_/Interface/AddOns/` dizinine kopyalayın.
+2. Karakter seçme ekranında *AddOns* menüsünden etkinleştirin. `AtlasRoute_Mainline.toc` içindeki `## Interface: 120105` numarası 12.1.5 içindir; oyunda `/dump select(4, GetBuildInfo())` farklı bir sayı verirse onu yazın ya da menüde *Load out of date AddOns* kutusunu işaretleyin.
+3. `/ar status`: eklentinin okuduklarını gösterir (kıta, gösterilen ve keşfedilmiş uçuş noktaları, uçuş ve yer hızı, hearthstone, görev duraklarının kaynağı).
+4. Birkaç görev alın; haritadaki görev verenleri de eklemek için `/ar nearby`.
+5. `/ar list`: her durağın nereden geldiği (canlı kütük, harita işareti ya da oyunun tabloları). `/ar plan`: Atlas'ın turu. Plan bir pencerede açılır ve dünya haritasına (M) çizilir:
+   - **Plan penceresi** (`ui/view.lua`): ilerleme çubuğu (yapılan / toplam durak, kalan süre), sıradaki durak ve ona canlı uzaklığınız (saniyede iki kez güncellenir), ardından bütün duraklar sırayla, yolculuk süreleriyle; sıradaki satır vurgulanır, yapılanlarda onay işareti çıkar, uçuşlu bacaklarda "fly" yazar. Bir durağa sol tıklayınca oyunun kendi yön oku (waypoint) oraya döner; sağ tıklayınca durak yapıldı/yapılmadı olarak işaretlenir. Pencere sürüklenebilir; *Map* haritayı açar, *Replan* yeniden planlar.
+   - **Dünya haritası**: yürüme beyaz, koyu kenarlı çizgi; uçuşlar oyunun uçuş haritasının kendi çizgi dokusuyla (`_UI-Taxi-Line-horizontal`). Yeni bir plan açılınca rota parça parça çizilir (uçuş haritasının `LineScale` animasyonu). Duraklar yuvarlak, numaralı işaretler; aynı yerdeki duraklar tek işaret paylaşır ("1,2"). Sıradaki durağın arkasında görev işaretlerinin parıltısı (`UI-QuestPoi-OuterGlow`) atar; yapılanlar soluk. Hangi haritaya bakarsanız (bölge ya da kıta) ona göre çizilir; işaretler yakınlaştırınca ekrandaki boyutunu korur (Blizzard'ın harita iğneleri gibi). İşaretlerin üzerine gelince o yerdeki bütün duraklar listelenir; tıklayınca pencerede olduğu gibi ok ya da işaret.
+   - Kullanılan bütün doku, atlas ve yazı tipleri Blizzard'ın 12.1.5 arayüzünün kendi kullandıklarıdır.
+   - Görevi alınca, hedefleri bitince ve teslim edince ilgili duraklar kendiliğinden işaretlenir ve ok bir sonraki durağa geçer (`QUEST_ACCEPTED`, `QUEST_LOG_UPDATE`, `QUEST_TURNED_IN`).
+6. `/ar route <uçuş noktası ya da durak>`: tek bir yere en hızlı yol. `/ar places` adları listeler.
+7. Bir kez uçun ve hearthstone'u bir kez kullanın: eklenti uçuşu ölçer, hearthstone'un indiği yeri kaydeder (`/ar status`'ta görünür) ve sonraki planlar bunları kullanır.
+
+Komutlar: `/ar plan`, `/ar window` (pencereyi aç/kapat), `/ar map` (haritayı aç), `/ar nearby [clear]`, `/ar list`, `/ar route <yer>`, `/ar places [metin]`, `/ar speed <yd/sn> | auto`, `/ar status`.
+
+### Sınırlar
+
+- Plan bulunduğunuz kıtada kalır. Başka kıtadaki duraklar plana alınmaz, `note:` satırında bildirilir (kıtalar arası gemi, zeplin ve portallar tablolarda yok).
+- Yürüme düz çizgi × 1,3'tür; arazi, su ve dağlar bilinmez. Yürüme grafı her yeri en yakın 4 yere bağlar, kopuk kalan parçaları en yakın çiftten birleştirir.
+- İstemcinin haritada göstermediği bir görev hedefi için tablolardaki her hedefin ilk alanının ortası kullanılır; bitmiş hedefler kütükteki sırayla eşleştirilir.
+- Büyücü ışınlanmaları, şehir portalları ve skyriding modellenmedi.
+- Haritadaki uçuş çizgileri iki uçuş noktası arasında düz çizgidir; uçağın izlediği gerçek yol (tablolarda var) çizilmez, yalnızca uzunluğu kullanılır. Pencere en çok 25 durak gösterir; daha uzun planlar sohbet penceresinde de listelenir.
+- Eklenti gerçek bir istemcide ve deneme hesabında çalıştırılmadı. 12.1.5 API'si taklit edilerek (`tests/retail.lua`) Lua 5.1 ve LuaJIT altında sınandı; API imzaları Blizzard'ın arayüz kaynağından (Gethe/wow-ui-source, `live` dalı, 12.1.5.70961) alındı.
+
 ## Veri
 
 `data/world_data.lua` elle kuruldu: 67 yer, 50 uçuş ustası, 84 uçuş bağlantısı, 18 gemi/zeplin/skyship/tram/portal hattı, 11 ışınlanma.
@@ -159,6 +209,12 @@ LuaJIT gerekir (Lua 5.1 uyumlu, `bit` kütüphanesiyle). Lua 5.4 ile çalışmaz
 
 ```bash
 luajit tests/run.lua
+```
+
+Retail testleri (oyunun tabloları ve taklit edilmiş 12.x API'si ile):
+
+```bash
+luajit tests/retail.lua
 ```
 
 Karşılaştırma yöntemlerinin testleri ve ölçümler:
@@ -197,16 +253,23 @@ Rastgele FSM üretmek: `luajit tools/gen_fsm.lua <durum> <girdi> <çıktı> <toh
 
 ```
 AtlasRoute/            eklenti (WoW'a kopyalanacak klasör)
+  AtlasRoute.toc       Forever
+  AtlasRoute_Mainline.toc  retail (ücretsiz deneme sürümü)
   core/fsm.lua         Atlas'ın graf yapısı, .fsm okuyucu, Java HashSet sırası
   core/atlas.lua       Atlas'ın birebir Lua karşılığı
   core/world.lua       çok kipli dünya grafı
   core/atlasplan.lua   Atlas ile planlama: görev turu, tek rota, uçuş ağı
-  data/                harita ve gerçek Classic görevleri
-  ui/addon.lua         oyun içi komutlar
+  core/retail.lua      retail: oyunun verisinden dünya grafı ve görev durakları
+  data/                Forever haritası ve gerçek Classic görevleri;
+                       retail_taxi.lua, retail_quests.lua: oyunun tablolarından üretildi
+  ui/addon.lua         oyun içi komutlar (Forever)
+  ui/retail.lua        oyun içi komutlar (retail): canlı istemciyi okur, uçuşları ölçer
+  ui/view.lua          retail: plan penceresi, dünya haritasındaki rota, yön oku
 benchmark/             yalnızca ölçüt: Dijkstra, Held-Karp, Çinli ve Kırsal Postacı,
                        testleri ve bench.lua (eklentide yok)
 web/                   Wayfarer's Atlas tanıtım sayfası ve Lua köprüsü
 reference/             Atlas'ın Java koduna bağlantı + RefMain.java (karşılaştırma için)
-tests/                 testler ve Java çıktıları
-tools/                 yükleyici, ölçüm, Java karşılaştırması, FSM üretici, komut satırı demosu
+tests/                 testler ve Java çıktıları; retail.lua: retail testleri
+tools/                 yükleyici, ölçüm, Java karşılaştırması, FSM üretici, komut satırı demosu;
+                       extract_retail.py: retail verisini oyunun tablolarından üretir
 ```
