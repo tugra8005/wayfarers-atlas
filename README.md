@@ -134,7 +134,7 @@ luajit tools/build_web.lua artifact <klasör>
 Hedef sürüm **World of Warcraft: Forever**'dır (Classic tabanlı, 4 Kasım 2026'da çıktı). Forever'da uçan binek yoktur, modelde de yok. Eklenen Forever yolları ve kaynakları için aşağıdaki *Veri* bölümüne bakın.
 
 1. `AtlasRoute/` klasörünü kullandığınız sürümün `World of Warcraft/<sürüm klasörü>/Interface/AddOns/` dizinine kopyalayın.
-2. `AtlasRoute.toc` içindeki `## Interface:` numarası istemcinizinkiyle aynı olmalı. Oyunda `/dump select(4, GetBuildInfo())` yazarak öğrenin ve dosyadaki `11507` yerine onu koyun. Bu numara denenmedi.
+2. `AtlasRoute.toc` içindeki `## Interface: 16001`, Forever 1.60.1'in arayüz numarasıdır (sürüm 1.60.1 → 16001; önceki `11507` Classic Era 1.15.7'nindi). Forever güncellenip numara değişirse oyunda `/dump select(4, GetBuildInfo())` yazarak öğrenin ve dosyaya onu yazın ya da *Load out of date AddOns* kutusunu işaretleyin.
 3. Karakter seçme ekranında *AddOns* menüsünden etkinleştirin.
 
 Komutlar (`/ar` ya da `/atlasroute`):
