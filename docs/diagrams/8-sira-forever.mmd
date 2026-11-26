@@ -1,0 +1,55 @@
+%% Sıra diyagramı: Forever eklentisinde /ar plan. Kod: AtlasRoute/ui/addon.lua, core/
+sequenceDiagram
+  autonumber
+  actor P as Oyuncu
+  participant WOW as WoW istemcisi
+  participant CR as CommandRegistry
+  participant CMD as Command
+  participant UI as AtlasRoute/ui/addon.lua
+  participant AP as AtlasPlan
+  participant QG as QuestTourGoal
+  participant QL as QuestLog
+  participant TF as TravelGraphFactory
+  participant PL as AtlasPlanner
+  participant S as AtlasSolver
+  participant LA as LegAssembler
+
+  P->>WOW: /ar plan yazar
+  WOW->>CR: dispatch("plan")
+  CR->>CR: get("plan")
+  CR->>CMD: execute("")
+  CMD->>UI: plan()
+  UI->>UI: startPlace()
+  UI->>WOW: GetSubZoneText(), GetZoneText()
+  UI->>UI: profile()
+  UI->>WOW: UnitClass(), UnitFactionGroup(), IsSpellKnown(), GetItemCount(), GetBindLocation(), GetItemCooldown()
+  UI->>UI: coroutine.create(plan işi)
+  UI-->>P: "Planning from ..." (sohbet)
+
+  WOW->>UI: OnUpdate (ilk kare): coroutine.resume
+  UI->>AP: plan(world, profile, startId, quests, opts)
+  AP->>QG: new(world, quests)
+  QG->>QL: stops()
+  QL-->>QG: duraklar (alma, hedefler, teslim, önkoşullar)
+  AP->>TF: build()
+  TF-->>AP: TravelGraph (karakterin kullanabildiği kenarlar, saniye)
+  AP->>PL: run(g, start, goal)
+  PL->>QG: prepare(g)
+  Note over QG: her durak için gerekli bir döngü kenarı
+  PL->>S: solve(g, start)
+  loop her Atlas turu (ayrıntısı bir sonraki diyagramda)
+    S->>S: choose(g, last, state)
+    S->>S: append(g, chain, last, state)
+    S->>S: emit("round", rounds, covered, required)
+    S-->>UI: "round" dinleyicisi: coroutine.yield()
+    Note over UI,WOW: kare oyuna geri verilir, sonraki OnUpdate kaldığı yerden sürdürür
+    WOW->>UI: OnUpdate: coroutine.resume
+  end
+  S-->>PL: yürüyüş (kenar sırası, süre, tur sayısı)
+  PL->>QG: collect(g, run)
+  QG->>LA: legs(g, labels)
+  LA-->>QG: bacaklar (yürü, uç, gemi, ışınlan...)
+  QG-->>AP: plan
+  AP-->>UI: plan
+  UI->>UI: printPlan(plan)
+  UI-->>P: duraklar ve bacaklar (sohbet)

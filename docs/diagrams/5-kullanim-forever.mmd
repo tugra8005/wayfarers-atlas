@@ -1,0 +1,36 @@
+%% Kullanım durumları: Forever eklentisi. Komutlar: AtlasRoute/ui/addon.lua
+%% (Mermaid'de kullanım durumu diyagramı türü yok: aktörler dikdörtgen, kullanım durumları
+%% oval, sistem sınırı bir çerçevedir; «include» ve «extend» kesikli oklardır.)
+flowchart LR
+  P["«aktör»<br/>Oyuncu"]
+  WOW["«aktör»<br/>WoW istemcisi"]
+  subgraph SYS["AtlasRoute: Forever eklentisi"]
+    direction TB
+    UC1(["Örnek görevleri yükle<br/>/ar demo"])
+    UC2(["Görev ekle<br/>/ar quest"])
+    UC3(["Görevleri listele, sil, temizle<br/>/ar list, /ar remove, /ar clear"])
+    UC4(["Görev turu planla<br/>/ar plan"])
+    UC5(["Bir yere rota iste<br/>/ar route"])
+    UC6(["Başlangıç yerini seç<br/>/ar from"])
+    UC7(["Binek hızını ayarla<br/>/ar speed"])
+    UC8(["Frequent Flier ve beta yolları<br/>/ar flier, /ar beta"])
+    UC9(["Yerleri ara<br/>/ar places"])
+    UC10(["Karakteri oku<br/>fraksiyon, sınıf, büyüler,<br/>hearthstone, aletler, bekleme süreleri"])
+    UC11(["Bulunulan yeri bul<br/>bölge ve alt bölge adı"])
+  end
+  P --- UC1
+  P --- UC2
+  P --- UC3
+  P --- UC4
+  P --- UC5
+  P --- UC6
+  P --- UC7
+  P --- UC8
+  P --- UC9
+  UC4 -. "«include»" .-> UC10
+  UC4 -. "«include»" .-> UC11
+  UC5 -. "«include»" .-> UC10
+  UC5 -. "«include»" .-> UC11
+  UC6 -. "«extend»" .-> UC11
+  UC10 --- WOW
+  UC11 --- WOW

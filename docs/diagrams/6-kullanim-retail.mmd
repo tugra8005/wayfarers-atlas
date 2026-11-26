@@ -1,0 +1,43 @@
+%% Kullanım durumları: retail eklentisi (ücretsiz deneme sürümü). Komutlar: AtlasRoute/ui/retail.lua
+flowchart LR
+  P["«aktör»<br/>Oyuncu"]
+  WOW["«aktör»<br/>WoW istemcisi"]
+  subgraph SYS["AtlasRoute: retail eklentisi"]
+    direction TB
+    UC1(["Görev kütüğünü planla<br/>/ar plan"])
+    UC2(["Yakındaki görev verenleri ekle<br/>/ar nearby"])
+    UC3(["Planın duraklarını listele<br/>/ar list"])
+    UC4(["Bir yere rota iste<br/>/ar route"])
+    UC5(["Yerleri ara<br/>/ar places"])
+    UC6(["Binek hızını ayarla<br/>/ar speed"])
+    UC7(["Ne okunduğunu gör<br/>/ar status"])
+    UC8(["Plan penceresini aç, kapat<br/>/ar window"])
+    UC9(["Haritada rotayı gör<br/>/ar map"])
+    UC10(["Bir durağa yön oku koy<br/>pencerede sol tık"])
+    UC11(["Durağı tamam say<br/>pencerede sağ tık"])
+    UC12(["Oyunu oku<br/>konum, uçuş noktaları,<br/>görev kütüğü, görev verenler"])
+    UC13(["Uçuş süresini ölç"])
+    UC14(["Hearthstone noktasını kaydet"])
+    UC15(["Görev olayıyla durağı işaretle<br/>alındı, bitti, teslim edildi"])
+  end
+  P --- UC1
+  P --- UC2
+  P --- UC3
+  P --- UC4
+  P --- UC5
+  P --- UC6
+  P --- UC7
+  P --- UC8
+  P --- UC9
+  P --- UC10
+  P --- UC11
+  UC1 -. "«include»" .-> UC12
+  UC3 -. "«include»" .-> UC12
+  UC4 -. "«include»" .-> UC12
+  UC1 -. "«include»" .-> UC8
+  UC10 -. "«extend»" .-> UC11
+  UC15 -. "«include»" .-> UC11
+  UC12 --- WOW
+  WOW --- UC13
+  WOW --- UC14
+  WOW --- UC15

@@ -1,0 +1,47 @@
+%% Sıra diyagramı: retail eklentisinde /ar plan, sonra bir görev olayı.
+%% Kod: AtlasRoute/ui/retail.lua, AtlasRoute/ui/view.lua, core/retail.lua
+sequenceDiagram
+  autonumber
+  actor P as Oyuncu
+  participant WOW as WoW istemcisi
+  participant CR as CommandRegistry
+  participant RUI as AtlasRoute/ui/retail.lua
+  participant RET as AtlasRoute/core/retail.lua
+  participant SNAP as RetailSnapshot
+  participant W as World
+  participant AP as AtlasPlan
+  participant V as AtlasRoute/ui/view.lua
+
+  P->>WOW: /ar plan
+  WOW->>CR: dispatch("plan")
+  CR->>RUI: plan() (Command)
+  RUI->>RUI: build()
+  RUI->>RUI: snapshot()
+  RUI->>WOW: UnitPosition(), C_TaxiMap.GetTaxiNodesForMap(), C_QuestLog.GetQuestsOnMap(), GetBindLocation(), C_Item.GetItemCooldown()
+  RUI->>RET: build(snap)
+  RET->>SNAP: new(snap, taxiData, questData)
+  RET->>SNAP: build()
+  SNAP->>W: new()
+  SNAP->>W: addPlace(p)
+  SNAP->>W: addFlightMaster(placeId)
+  SNAP->>W: edge(from, to, mode, cost)
+  SNAP->>W: connectWalking(k)
+  SNAP-->>RET: World, profile, quests, notes
+  RET-->>RUI: b = {world, profile, start, quests, notes}
+  RUI->>AP: plan(world, profile, startId, quests, opts)
+  Note over RUI,AP: coroutine içinde, her Atlas turundan sonra kare oyuna bırakılır (Forever diyagramındaki gibi)
+  AP-->>RUI: plan
+  RUI->>RUI: printPlan(b, plan)
+  RUI->>V: model(world, plan, continent, describe)
+  RUI->>V: show(model)
+  V->>WOW: plan penceresi, dünya haritasına rota (harita veri sağlayıcısı)
+  RUI-->>P: özet ve notlar (sohbet)
+
+  Note over P,V: daha sonra, oyunda
+  P->>WOW: görevi teslim eder
+  WOW->>V: QUEST_TURNED_IN (questID)
+  V->>V: questEvent(questID, kinds)
+  V->>V: toggle(k)
+  V->>V: waypoint(k)
+  V->>WOW: C_Map.SetUserWaypoint(), C_SuperTrack.SetSuperTrackedUserWaypoint()
+  WOW-->>P: yön oku sıradaki durağı gösterir

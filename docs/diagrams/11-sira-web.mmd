@@ -1,0 +1,31 @@
+%% Sıra diyagramı: tanıtım sayfasında "Plan the journey". Kod: web/template.html, web/bridge.lua
+sequenceDiagram
+  autonumber
+  actor V as Ziyaretçi
+  participant PG as web/template.html
+  participant WK as Web Worker (wasmoon, Lua 5.4)
+  participant BR as web/bridge.lua
+  participant AP as AtlasPlan
+
+  V->>PG: Plan the journey
+  PG->>PG: plan()
+  PG->>PG: planQuery()
+  PG->>WK: postMessage({type: "call", fn: "plan", arg})
+  WK->>BR: plan(q)
+  BR->>BR: parse(q)
+  BR->>BR: getWorld()
+  BR->>BR: profileFrom(o)
+  BR->>AP: plan(world, profile, startId, quests)
+  AP-->>BR: plan
+  BR->>BR: legsOut(w, travel)
+  BR->>BR: json(v)
+  BR-->>WK: JSON
+  WK-->>PG: postMessage({type: "result", result})
+  PG->>PG: renderPlan(r)
+  PG->>PG: buildSegments(segs)
+  PG->>PG: drawMarkers(steps)
+  PG->>PG: travel(items, who, opts)
+  loop her bacak (requestAnimationFrame)
+    PG->>PG: figürü kipine göre çiz, mürekkebi aç, kamera izler, kum saati sayar
+  end
+  PG-->>V: rota haritada, duraklar yolculuk günlüğünde, olaylar sohbet kutusunda

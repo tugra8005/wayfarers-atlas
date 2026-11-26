@@ -1,0 +1,50 @@
+%% Sıra diyagramı: AtlasSolver.solve ve bir Atlas turu. Kod: AtlasRoute/core/solver.lua, core/graph.lua
+sequenceDiagram
+  autonumber
+  participant PL as AtlasPlanner
+  participant S as AtlasSolver
+  participant RS as RunState
+  participant TG as TravelGraph
+  participant EO as ExplorationOrder
+  participant SR as ScoringRule
+
+  PL->>S: solve(g, start)
+  S->>TG: add(e)
+  Note over S,TG: başlangıç döngüsü: yürüyüş buradan başlar
+  S->>RS: new(g)
+  Note over RS: VALUE = bütün ağırlıkların toplamı + 1
+  loop kapsanmamış gerekli kenar kaldıkça
+    S->>S: choose(g, last, state)
+    loop 16 keşif sırasının her biri
+      S->>S: score(g, last, order, state)
+      S->>S: explore(g, last, order)
+      S->>TG: outEdges(node, order)
+      TG->>EO: arrange(list, edges, node)
+      Note over TG,EO: yalnızca ilk istekte, sonra sıraya göre önbellekten
+      TG-->>S: canlı kenarlar (harcanan ışınlanmalar hariç)
+      Note over S: DFS ardıl-sıralaması, sonra ters sırada en uzun yol DP'si
+      loop sıradaki her kenar n
+        S->>RS: available(n)
+        S->>SR: propagate(avail, value)
+        S->>SR: candidate(nc, avail, value)
+      end
+      S-->>S: bu sıranın en iyi zinciri ve puanı
+    end
+    S-->>S: bütün sıralar içinde en iyi zincir
+    alt zincir yok
+      S-->>PL: kalan gerekli kenarlara ulaşılamıyor: dur
+    else zincir var
+      S->>S: append(g, chain, last, state)
+      loop zincirdeki her kenar
+        S->>RS: available(l)
+        opt yeni gerekli kenar
+          S->>S: emit("covered", l, walk)
+        end
+        opt tek kullanımlık ışınlanma
+          S->>TG: removeGroup(group)
+        end
+      end
+      S->>S: emit("round", rounds, covered, required)
+    end
+  end
+  S-->>PL: walk, seconds, covered, required, rounds, order

@@ -93,9 +93,76 @@ end)
 
 test("The Markdown page GitHub shows has the same diagrams as the sources", function()
   local page = read(root .. "/docs/diagrams/README.md")
-  for _, f in ipairs({ "1-genel.mmd", "2-dunya.mmd", "3-atlas.mmd", "4-planlama.mmd" }) do
+  for _, f in ipairs({ "1-genel.mmd", "2-dunya.mmd", "3-atlas.mmd", "4-planlama.mmd", "5-kullanim-forever.mmd",
+                       "6-kullanim-retail.mmd", "7-kullanim-web.mmd", "8-sira-forever.mmd", "9-sira-atlas.mmd",
+                       "10-sira-retail.mmd", "11-sira-web.mmd" }) do
     local src = read(root .. "/docs/diagrams/" .. f):gsub("%s+$", "")
     truthy(page:find(src, 1, true), f .. " differs from docs/diagrams/README.md; run docs/diagrams/pdf.mjs")
+  end
+end)
+
+-- Sequence diagrams: every message to a class or a file names something it defines --------
+-- A participant labelled with a class name is checked against the class (methods, `new`,
+-- inherited ones); one labelled with a file path against the functions in that file.
+-- Actors, the game client and the worker are outside the code and not checked.
+local SEQUENCES = { "8-sira-forever.mmd", "9-sira-atlas.mmd", "10-sira-retail.mmd", "11-sira-web.mmd" }
+
+local function definedInFile(path, name)
+  local text = read(root .. "/" .. path)
+  for _, pat in ipairs({ "function%s+" .. name .. "%s*%(", "function%s+[%w_]+[%.:]" .. name .. "%s*%(",
+                         "[%w_]+%." .. name .. "%s*=%s*" }) do
+    if text:find(pat) then return true end
+  end
+  return false
+end
+
+test("Sequence diagrams: every message names a real method or function", function()
+  local checked = 0
+  for _, file in ipairs(SEQUENCES) do
+    local text = read(root .. "/docs/diagrams/" .. file)
+    local parts = {}
+    for alias, label in text:gmatch("\n%s*participant%s+([%w_]+)%s+as%s+([^\n]+)") do parts[alias] = label:gsub("%s+$", "") end
+    -- calls only (->>); replies (-->>) carry results, not calls
+    for _, to, msg in text:gmatch("\n%s*([%w_]+)%->>([%w_]+):%s*([^\n]*)") do
+      local label = parts[to]
+      local name = msg:match("^([%w_]+)%(")
+      if label and name then
+        local obj = all[label]
+        if obj then
+          local ok = type(obj[name]) == "function"
+          if obj.__interface then
+            for _, m in ipairs(obj.methods) do if m == name then ok = true end end
+          end
+          truthy(ok, file .. ": " .. label .. " has no " .. name)
+          checked = checked + 1
+        elseif label:match("%.lua$") or label:match("%.html$") then
+          truthy(definedInFile(label, name), file .. ": " .. label .. " defines no " .. name)
+          checked = checked + 1
+        end
+      end
+    end
+  end
+  truthy(checked >= 60, "only " .. checked .. " messages checked")
+  -- Mermaid ends a sequence statement at ";", which would cut a message in two
+  for _, file in ipairs(SEQUENCES) do
+    truthy(not read(root .. "/docs/diagrams/" .. file):find(";"), file .. " has a \";\"")
+  end
+end)
+
+-- Use case diagrams: the /ar commands in a diagram are the commands of that addon, all of them.
+test("Use case diagrams list exactly the /ar commands each addon has", function()
+  for _, uc in ipairs({ { "5-kullanim-forever.mmd", "AtlasRoute/ui/addon.lua" },
+                        { "6-kullanim-retail.mmd", "AtlasRoute/ui/retail.lua" } }) do
+    local text = read(root .. "/docs/diagrams/" .. uc[1])
+    local code = read(root .. "/" .. uc[2])
+    local inDiagram, inCode = {}, {}
+    for name in text:gmatch("/ar%s+([%w_]+)") do inDiagram[name] = true end
+    for name in code:gmatch("function%s+commands%.([%w_]+)%s*%(") do inCode[name] = true end
+    for name in code:gmatch("\ncommands%.([%w_]+)%s*=") do inCode[name] = true end
+    for name in pairs(inDiagram) do truthy(inCode[name], uc[1] .. ": /ar " .. name .. " is not a command") end
+    for name in pairs(inCode) do
+      if name ~= "help" then truthy(inDiagram[name], uc[1] .. ": /ar " .. name .. " is missing") end
+    end
   end
 end)
 

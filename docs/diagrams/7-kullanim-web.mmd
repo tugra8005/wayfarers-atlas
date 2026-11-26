@@ -1,0 +1,27 @@
+%% Kullanım durumları: Wayfarer's Atlas tanıtım sayfası. Kod: web/template.html, web/bridge.lua
+flowchart LR
+  V["«aktör»<br/>Ziyaretçi"]
+  subgraph SYS["Wayfarer's Atlas (tarayıcıda, oyunsuz)"]
+    direction TB
+    UC1(["Karakteri seç<br/>fraksiyon, sınıf, başlangıç,<br/>hearthstone, binek, aletler"])
+    UC2(["Görevleri seç"])
+    UC3(["Yolculuğu planla<br/>Plan the journey"])
+    UC4(["Yolculuğu haritada izle<br/>figür, kamera, kum saati"])
+    UC5(["Yolculuğu atla<br/>Skip"])
+    UC6(["Bir yere tıkla ve git<br/>Travel"])
+    UC7(["Uçuş ağının tamamını kapsa<br/>Atlas 2020 ve süreli Atlas"])
+    UC8(["Kapsama yürüyüşünü çiz<br/>Draw"])
+    UC9(["Atlas ile hesapla<br/>Lua kodu, wasmoon'da"])
+  end
+  V --- UC1
+  V --- UC2
+  V --- UC3
+  V --- UC6
+  V --- UC7
+  UC3 -. "«include»" .-> UC9
+  UC3 -. "«include»" .-> UC4
+  UC6 -. "«include»" .-> UC9
+  UC6 -. "«include»" .-> UC4
+  UC7 -. "«include»" .-> UC9
+  UC5 -. "«extend»" .-> UC4
+  UC8 -. "«extend»" .-> UC7

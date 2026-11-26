@@ -22,7 +22,7 @@ Atlas bir grafın bütün kenarlarını düşük maliyetle tek yürüyüşte dol
 
 ## Tasarım: sınıflar, SOLID, desenler
 
-Sınıf diyagramları: [`docs/AtlasRoute-Sinif-Diyagramlari.pdf`](docs/AtlasRoute-Sinif-Diyagramlari.pdf) (A4, 5 sayfa) ve GitHub'da çizilen hâli [`docs/diagrams/`](docs/diagrams/README.md). Kaynaklar `docs/diagrams/*.mmd` (Mermaid); `tests/design.lua` diyagramlardaki her sınıfın, her yöntemin ve her kalıtım/arayüz okunun kodda olduğunu, koddaki her sınıfın bir diyagramda bulunduğunu ve desenlerin davranışını sınar.
+Diyagramlar: [`docs/AtlasRoute-Diyagramlar.pdf`](docs/AtlasRoute-Diyagramlar.pdf) (A4, 12 sayfa) ve GitHub'da çizilen hâli [`docs/diagrams/`](docs/diagrams/README.md): paket görünümü, üç sınıf diyagramı (dünya modeli; graf ve Atlas çözücü; planlama, cephe ve arayüzler), üç kullanım durumu diyagramı (Forever eklentisi, retail eklentisi, tanıtım sayfası) ve dört sıra diyagramı (Forever'da `/ar plan`, bir Atlas turu, retail'de `/ar plan` ve bir görev olayı, tanıtım sayfasında plan). Kaynaklar `docs/diagrams/*.mmd` (Mermaid). `tests/design.lua` diyagramları kodla karşılaştırır: sınıf diyagramlarındaki her sınıf, yöntem ve kalıtım/arayüz oku kodda var mı, koddaki her sınıf bir diyagramda mı, sıra diyagramlarındaki her çağrı çağrılan sınıfta ya da dosyada tanımlı mı, kullanım durumu diyagramları her eklentinin `/ar` komutlarını eksiksiz gösteriyor mu; desenlerin davranışını da sınar.
 
 Lua'da sınıf ve arayüz yoktur; `core/oop.lua` ikisini ekler (`Class`, `Interface`, `implements`). Bir sınıf arayüzünün bir yöntemini eksik bırakırsa eklenti yüklenirken hata verir.
 
@@ -309,7 +309,8 @@ web/                   Wayfarer's Atlas tanıtım sayfası ve Lua köprüsü
 reference/             Atlas'ın Java koduna bağlantı + RefMain.java (karşılaştırma için)
 tests/                 testler ve Java çıktıları; retail.lua: retail testleri;
                        design.lua: diyagramlar ile kod, desenlerin davranışı
-docs/                  sınıf diyagramları: PDF, Mermaid kaynakları (diagrams/), pdf.mjs
+docs/                  sınıf, kullanım durumu ve sıra diyagramları: PDF, Mermaid kaynakları
+                       (diagrams/), GitHub sayfası, pdf.mjs
 tools/                 yükleyici, ölçüm, Java karşılaştırması, FSM üretici, komut satırı demosu;
                        extract_retail.py: retail verisini oyunun tablolarından üretir
 ```
