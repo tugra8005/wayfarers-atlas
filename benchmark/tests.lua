@@ -155,7 +155,7 @@ test("Rural postman equals the exact CPP when every edge is required", function(
 end)
 
 -- Router ----------------------------------------------------------------------------------
-local world = ns.WorldData.build(ns.World)
+local world = ns.ForeverMap.new():build()
 local A = { faction = "Alliance", speed = 11.2, hearth = "stormwind" }
 local H = { faction = "Horde", speed = 11.2, hearth = "orgrimmar" }
 

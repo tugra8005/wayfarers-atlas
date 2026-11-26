@@ -5,10 +5,16 @@
 ## Version: 0.2.0
 ## SavedVariables: AtlasRouteDB
 
+core\oop.lua
+core\events.lua
 core\fsm.lua
 core\atlas.lua
 core\world.lua
+core\graph.lua
+core\solver.lua
+core\goals.lua
 core\atlasplan.lua
+core\commands.lua
 data\retail_taxi.lua
 data\retail_quests.lua
 core\retail.lua

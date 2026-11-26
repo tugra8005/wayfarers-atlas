@@ -1,0 +1,23 @@
+flowchart TB
+  UI["<b>Arayüzler</b><br/>ui/addon.lua (Forever), ui/retail.lua (retail),<br/>ui/view.lua (plan penceresi), web/bridge.lua, tools/plan.lua"]
+  CMD["<b>Komutlar</b> (Command)<br/>Command, CommandRegistry"]
+  SRC["<b>Veri kaynakları</b> (Adapter)<br/>ForeverMap, RetailSnapshot"]
+  FAC["<b>Cephe</b> (Facade)<br/>AtlasPlan"]
+  PLAN["<b>Planlama</b> (Strategy)<br/>AtlasPlanner, Goal: QuestTourGoal, RouteGoal,<br/>FlightNetworkGoal, FsmCoverageGoal; QuestLog, LegAssembler"]
+  SOL["<b>Atlas çözücü</b> (Template Method, Observer, Strategy)<br/>AtlasSolver, RunState, ScoringRule: SingleTarget, WholeChain"]
+  GRA["<b>Graf</b> (Factory, Adapter, Strategy)<br/>TravelGraph, TravelGraphFactory, FsmGraphAdapter,<br/>ExplorationOrder: CheapestFirst, DearestFirst, InsertionOrder, Shuffled"]
+  MOD["<b>Dünya modeli</b> (Strategy, Registry)<br/>World, Place, TravelEdge, Teleport, Gated, Profile,<br/>TravelMode: FixedMode, WalkMode, FlightMode; TravelModes; WorldSource"]
+  JAVA["<b>Atlas.java'nın birebir karşılığı</b><br/>Atlas, FSM"]
+  OOP["<b>Altyapı</b><br/>Class, Interface (core/oop.lua), Observable (core/events.lua)"]
+
+  UI --> CMD
+  UI --> FAC
+  UI --> SRC
+  FAC --> PLAN
+  FAC --> GRA
+  PLAN --> SOL
+  PLAN --> GRA
+  SOL --> GRA
+  GRA --> MOD
+  GRA --> JAVA
+  SRC --> MOD

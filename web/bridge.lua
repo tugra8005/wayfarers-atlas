@@ -56,7 +56,7 @@ end
 
 local world
 local function getWorld()
-  world = world or ns.WorldData.build(ns.World)
+  world = world or ns.ForeverMap.new():build()
   return world
 end
 

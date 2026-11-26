@@ -7,7 +7,7 @@
 --          beta                    also use routes only reported from the Forever beta
 local root = arg[0]:match("^(.*)/tools/") or "."
 local ns = dofile(root .. "/tools/load.lua")(root)
-local world = ns.WorldData.build(ns.World)
+local world = ns.ForeverMap.new():build()
 
 local side = (arg[1] or "alliance"):lower()
 local flags = {}

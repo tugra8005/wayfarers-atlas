@@ -474,11 +474,8 @@ end
 
 SLASH_ATLASROUTE1 = "/ar"
 SLASH_ATLASROUTE2 = "/atlasroute"
-SlashCmdList.ATLASROUTE = function(msg)
-  local cmd, rest = (msg or ""):match("^%s*(%S*)%s*(.-)%s*$")
-  local f = commands[(cmd or ""):lower()] or commands.help
-  f(rest or "")
-end
+local registry = ns.CommandRegistry.fromTable(commands)
+SlashCmdList.ATLASROUTE = function(msg) registry:dispatch(msg) end
 ns.commands = commands
 
 local events = CreateFrame("Frame")

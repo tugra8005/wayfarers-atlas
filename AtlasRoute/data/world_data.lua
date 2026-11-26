@@ -236,8 +236,13 @@ D.extraWalks = {
   { "shendralas", "shadowprey" },      -- Valley of Bones (TL)
 }
 
-function D.build(World)
-  local w = World.new()
+-- ForeverMap (Adapter): the hand-built map above as a World (implements WorldSource).
+local ForeverMap = ns.Class("ForeverMap")
+function ForeverMap:init(data) self.data = data or D end
+
+function ForeverMap:build()
+  local D = self.data
+  local w = ns.World.new()
   for _, p in ipairs(D.places) do
     local copy = {}
     for k, v in pairs(p) do copy[k] = v end
@@ -261,5 +266,9 @@ function D.build(World)
   w:connectWalking(4, D.extraWalks)
   return w
 end
+ns.implements(ForeverMap, ns.WorldSource)
 
-ns.WorldData = D
+-- Kept for callers that use the older form.
+function D.build() return ForeverMap.new(D):build() end
+
+ns.WorldData, ns.ForeverMap = D, ForeverMap

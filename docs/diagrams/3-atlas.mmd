@@ -1,0 +1,128 @@
+classDiagram
+  direction TB
+
+  class TravelGraph {
+    +edges
+    +out
+    +m
+    +removed
+    +groups
+    +add(e) int
+    +outEdges(node, order) list
+    +removeGroup(group)
+  }
+
+  class ExplorationOrder {
+    <<interface>>
+    +key() any
+    +arrange(list, edges, node)
+  }
+  class CheapestFirst {
+    +key() any
+    +arrange(list, edges, node)
+  }
+  class DearestFirst {
+    +key() any
+    +arrange(list, edges, node)
+  }
+  class InsertionOrder {
+    +key() any
+    +arrange(list, edges, node)
+  }
+  class Shuffled {
+    +seed
+    +key() any
+    +arrange(list, edges, node)
+  }
+  class ExplorationOrders {
+    <<utility>>
+    +default()$ list
+    +of(spec)$ ExplorationOrder
+  }
+
+  class TravelGraphFactory {
+    +world
+    +profile
+    +limited() list
+    +build() TravelGraph
+  }
+
+  class FsmGraphAdapter {
+    +fsm
+    +build() TravelGraph
+  }
+
+  class FSM {
+    +edges
+    +out
+    +m
+    +addEdge(source, dest, input, output, weight) int
+    +outEdges(node) list
+    +firstStart() int
+    +parse(text)$ FSM
+  }
+
+  class Atlas {
+    <<utility>>
+    +longestPath(g, start, keepLast)$ list
+    +run(g, keepLast)$ string
+    +testSuite(g, path)$ string
+    +stats(g, path)$ table
+  }
+
+  class Observable {
+    +on(event, listener)
+    +off(event, listener)
+    +emit(event, args)
+  }
+
+  class ScoringRule {
+    <<interface>>
+    +propagate(avail, value) number
+    +candidate(nc, avail, value) number
+  }
+  class SingleTarget {
+    +propagate(avail, value) number
+    +candidate(nc, avail, value) number
+  }
+  class WholeChain {
+    +propagate(avail, value) number
+    +candidate(nc, avail, value) number
+  }
+
+  class AtlasSolver {
+    +orders
+    +scoring
+    +solve(g, start) table
+    +explore(g, last, order) list
+    +score(g, last, order, state) number
+    +choose(g, last, state) list
+    +append(g, chain, last, state) int
+  }
+
+  class RunState {
+    +covered
+    +walk
+    +seconds
+    +value
+    +required
+    +available(l) bool
+  }
+
+  ExplorationOrder <|.. CheapestFirst
+  ExplorationOrder <|.. DearestFirst
+  ExplorationOrder <|.. InsertionOrder
+  ExplorationOrder <|.. Shuffled
+  ExplorationOrders ..> ExplorationOrder : yaratır
+  TravelGraph ..> ExplorationOrder : sıraya göre dizer
+  TravelGraphFactory ..> TravelGraph : kurar
+  FsmGraphAdapter ..> FSM : uyarlar
+  FsmGraphAdapter ..> TravelGraph : kurar
+  Atlas ..> FSM : 2020 Java karşılığı
+  Observable <|-- AtlasSolver
+  AtlasSolver o-- "16" ExplorationOrder : orders
+  AtlasSolver o-- "1" ScoringRule : scoring
+  ScoringRule <|.. SingleTarget
+  ScoringRule <|.. WholeChain
+  AtlasSolver ..> TravelGraph : yürür
+  AtlasSolver ..> RunState : yaratır

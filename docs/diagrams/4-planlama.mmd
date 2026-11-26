@@ -1,0 +1,105 @@
+classDiagram
+  direction TB
+
+  class Goal {
+    <<interface>>
+    +prepare(g)
+    +collect(g, run) any
+  }
+  class QuestTourGoal {
+    +world
+    +stops
+    +prepare(g)
+    +collect(g, run) table
+  }
+  class RouteGoal {
+    +dest
+    +prepare(g)
+    +collect(g, run) number
+  }
+  class FlightNetworkGoal {
+    +required
+    +prepare(g)
+    +collect(g, run) table
+  }
+  class FsmCoverageGoal {
+    +prepare(g)
+    +collect(g, run) table
+  }
+
+  class QuestLog {
+    +world
+    +quests
+    +stops() list
+  }
+
+  class LegAssembler {
+    +legs(g, labels) list
+  }
+
+  class AtlasPlanner {
+    +solver
+    +run(g, start, goal) any
+  }
+
+  class AtlasPlan {
+    <<facade>>
+    +plan(world, profile, startId, quests, opts)$ table
+    +route(world, profile, fromId, toId, opts)$ number
+    +cover(world, profile, startId, opts)$ table
+    +coverFSM(fsm, startNode, opts)$ table
+    +travelGraph(world, profile)$ TravelGraph
+    +limited(world, profile)$ list
+    +stops(world, quests)$ list
+    +walk(g, start, opts)$ table
+    +legsOf(g, labels)$ list
+  }
+
+  class Command {
+    +name
+    +handler
+    +execute(rest)
+  }
+
+  class CommandRegistry {
+    +commands
+    +register(name, handler) Command
+    +get(name) Command
+    +dispatch(msg)
+    +fromTable(t)$ CommandRegistry
+  }
+
+  class ForeverShell {
+    <<module ui/addon.lua>>
+  }
+  class RetailShell {
+    <<module ui/retail.lua>>
+  }
+  class PlanWindow {
+    <<module ui/view.lua>>
+  }
+  class WebBridge {
+    <<module web/bridge.lua>>
+  }
+
+  Goal <|.. QuestTourGoal
+  Goal <|.. RouteGoal
+  Goal <|.. FlightNetworkGoal
+  Goal <|.. FsmCoverageGoal
+  QuestTourGoal ..> QuestLog : durakları alır
+  QuestTourGoal ..> LegAssembler : bacaklara böler
+  RouteGoal ..> LegAssembler : bacaklara böler
+  AtlasPlanner o-- AtlasSolver : solver
+  AtlasPlanner ..> Goal : run(goal)
+  AtlasPlan ..> AtlasPlanner : kurar, çalıştırır
+  AtlasPlan ..> TravelGraphFactory : grafı kurar
+  AtlasPlan ..> AtlasSolver : "round" olayına abone (yield)
+  CommandRegistry o-- "*" Command
+  ForeverShell ..> CommandRegistry : /ar
+  RetailShell ..> CommandRegistry : /ar
+  ForeverShell ..> AtlasPlan
+  RetailShell ..> AtlasPlan
+  WebBridge ..> AtlasPlan
+  ForeverShell ..> ForeverMap : dünyayı kurar
+  RetailShell ..> RetailSnapshot : dünyayı kurar
+  RetailShell ..> PlanWindow : planı gösterir

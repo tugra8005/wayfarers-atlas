@@ -1,0 +1,136 @@
+classDiagram
+  direction TB
+
+  class Profile {
+    +faction
+    +class
+    +speed
+    +hearth
+    +items
+    +flySpeed
+    +unconfirmed
+    +of(t)$ Profile
+    +groundSpeed() number
+    +flightFactor() number
+  }
+
+  class Gated {
+    +faction
+    +class
+    +item
+    +spell
+    +unconfirmed
+    +check(g, profile)$ bool
+    +allows(profile) bool
+  }
+
+  class TravelEdge {
+    +from
+    +to
+    +mode
+    +cost
+    +seconds(profile) number
+  }
+
+  class Teleport {
+    +to
+    +toBind
+    +mode
+    +cost
+    +limited
+  }
+
+  class Place {
+    +id
+    +name
+    +zone
+    +continent
+    +x
+    +y
+    +kind
+    +distanceTo(other) number
+  }
+
+  class TravelMode {
+    <<interface>>
+    +seconds(edge, profile) number
+    +legMode() string
+    +joins(legMode) bool
+  }
+
+  class FixedMode {
+    +name
+    +seconds(edge, profile) number
+    +legMode() string
+    +joins(legMode) bool
+  }
+
+  class WalkMode {
+    +seconds(edge, profile) number
+    +joins(legMode) bool
+  }
+
+  class FlightMode {
+    +seconds(edge, profile) number
+    +joins(legMode) bool
+  }
+
+  class TravelModes {
+    <<registry>>
+    +register(name, mode)$ TravelMode
+    +get(name)$ TravelMode
+  }
+
+  class World {
+    +nodes
+    +adj
+    +teleports
+    +addPlace(p) int
+    +addFlightMaster(placeId, faction, class, unconfirmed) int
+    +addFlightLink(idA, idB, opts)
+    +addTransport(t)
+    +addTeleport(t)
+    +connectWalking(k, extra)
+    +edge(from, to, mode, cost, gate) TravelEdge
+    +index(id) int
+    +allowed(gated, profile) bool
+    +edgeCost(e, profile) number
+  }
+
+  class WorldSource {
+    <<interface>>
+    +build() World
+  }
+
+  class ForeverMap {
+    +data
+    +build() World
+  }
+
+  class RetailSnapshot {
+    +snap
+    +profile
+    +start
+    +quests
+    +notes
+    +build() World
+  }
+
+  Gated <|-- TravelEdge
+  Gated <|-- Teleport
+  Gated ..> Profile : izin
+  World "1" *-- "*" Place : yerler
+  World "1" *-- "*" TravelEdge : kenarlar
+  World "1" *-- "*" Teleport : ışınlanmalar
+  TravelEdge ..> TravelModes : kipini sorar
+  TravelModes o-- "*" TravelMode
+  TravelMode <|.. FixedMode
+  FixedMode <|-- WalkMode
+  FixedMode <|-- FlightMode
+  WalkMode ..> Profile : yer hızı
+  FlightMode ..> Profile : uçuş hızı
+  WorldSource <|.. ForeverMap
+  WorldSource <|.. RetailSnapshot
+  ForeverMap ..> World : kurar
+  RetailSnapshot ..> World : kurar
+  RetailSnapshot ..> Profile : kurar

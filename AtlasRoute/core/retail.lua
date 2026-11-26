@@ -91,11 +91,20 @@ end
 --   flightSpeed (yd/s, measured), flightTimes = {["a>b"] = seconds} (measured, direct hops)
 -- }
 -- taxiData / questData default to ns.RetailTaxi / ns.RetailQuests.
--- Returns {world, profile, start, quests, notes, sources}.
-function Retail.build(snap, taxiData, questData)
+--
+-- RetailSnapshot (Adapter): a snapshot of the live client plus the game's tables as a World
+-- (implements WorldSource, as ForeverMap does for the hand-built map). After build() it also
+-- holds what the snapshot says about the character: profile, start, quests, notes, sources.
+local RetailSnapshot = ns.Class("RetailSnapshot")
+function RetailSnapshot:init(snap, taxiData, questData)
+  self.snap = snap
+  self.taxiData = taxiData or ns.RetailTaxi
+  self.questData = questData or ns.RetailQuests
+end
+
+function RetailSnapshot:build()
   local World = ns.World
-  taxiData = taxiData or ns.RetailTaxi
-  questData = questData or ns.RetailQuests
+  local snap, taxiData, questData = self.snap, self.taxiData, self.questData
   local w = World.new()
   local notes, sources = {}, { live = 0, tables = 0 }
   local cont = snap.continent
@@ -206,7 +215,17 @@ function Retail.build(snap, taxiData, questData)
 
   w:connectWalking(Retail.K)
   connect(w)
-  return { world = w, profile = profile, start = "here", quests = quests, notes = notes, sources = sources }
+  self.profile, self.start, self.quests, self.notes, self.sources = profile, "here", quests, notes, sources
+  return w
+end
+ns.implements(RetailSnapshot, ns.WorldSource)
+
+-- Returns {world, profile, start, quests, notes, sources}.
+function Retail.build(snap, taxiData, questData)
+  local src = RetailSnapshot.new(snap, taxiData, questData)
+  local w = src:build()
+  return { world = w, profile = src.profile, start = src.start, quests = src.quests,
+           notes = src.notes, sources = src.sources }
 end
 
-ns.Retail = Retail
+ns.Retail, ns.RetailSnapshot = Retail, RetailSnapshot

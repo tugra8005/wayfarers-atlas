@@ -67,7 +67,7 @@ test("Atlas with weights covers every FSM edge with a contiguous walk from state
 end)
 
 -- The world and the Atlas planner ----------------------------------------------------------
-local world = ns.WorldData.build(ns.World)
+local world = ns.ForeverMap.new():build()
 local AP = ns.AtlasPlan
 local A = { faction = "Alliance", speed = 11.2, hearth = "stormwind" }
 local H = { faction = "Horde", speed = 11.2, hearth = "orgrimmar" }

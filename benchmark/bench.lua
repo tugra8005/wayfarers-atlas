@@ -58,7 +58,7 @@ end
 if which == "map" or which == "all" then
   print("\n## Game map: fly every flight link (both directions), seconds")
   print("character      links | Atlas.java (unit steps) | Atlas (ours)            | Rural Postman | lower bound")
-  local world = ns.WorldData.build(ns.World)
+  local world = ns.ForeverMap.new():build()
   for _, prof in ipairs({
     { label = "Alliance",      faction = "Alliance", speed = 11.2, start = "stormwind" },
     { label = "Alliance mage", faction = "Alliance", class = "MAGE", speed = 11.2, start = "stormwind" },
@@ -96,7 +96,7 @@ end
 if which == "tour" or which == "all" then
   print("\n## Quest tours: Atlas vs the exact Held-Karp tour (random subsets of the real quest logs)")
   print("stops | runs | Atlas = exact | mean Atlas/exact | worst | Atlas ms | exact ms")
-  local world = ns.WorldData.build(ns.World)
+  local world = ns.ForeverMap.new():build()
   local logs = {
     { faction = "Alliance", quests = ns.QuestData.alliance, starts = { "ironforge", "stormwind", "menethil", "auberdine" }, hearth = "stormwind" },
     { faction = "Horde", quests = ns.QuestData.horde, starts = { "orgrimmar", "undercity", "crossroads" }, hearth = "orgrimmar" },
@@ -144,7 +144,7 @@ end
 
 if which == "routes" or which == "all" then
   print("\n## Single routes: Atlas vs Dijkstra (exact), every pair of 12 places")
-  local world = ns.WorldData.build(ns.World)
+  local world = ns.ForeverMap.new():build()
   local ids = { "raptorgrounds", "theramore", "nesingwary", "astranaar", "darnassus", "lakeshire",
                 "uldaman", "gadgetzan", "strahnbrad", "ratchet", "valanaar", "everlook" }
   for _, prof in ipairs({ { label = "Alliance", faction = "Alliance", speed = 11.2, hearth = "stormwind" },

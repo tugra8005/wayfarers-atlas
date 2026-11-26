@@ -20,6 +20,25 @@ Atlas bir grafın bütün kenarlarını düşük maliyetle tek yürüyüşte dol
 
 `core/atlas.lua` Java kodunun birebir Lua karşılığıdır (Java'nın `HashSet<Integer>` dolaşma sırası dahil). 58 FSM üzerinde (6 durumlu `bbtas`'tan 2000 kenarlı makinelere) Java ile aynı test dizisini üretir (`tools/compare_java.lua`). Java kodu son turda yürüyüşün son kenarını yürüyüşe eklemeden döner; `Atlas.run(g, true)` ve planlayıcı bu kenarı tutar.
 
+## Tasarım: sınıflar, SOLID, desenler
+
+Sınıf diyagramları: [`docs/AtlasRoute-Sinif-Diyagramlari.pdf`](docs/AtlasRoute-Sinif-Diyagramlari.pdf) (A4, 5 sayfa) ve GitHub'da çizilen hâli [`docs/diagrams/`](docs/diagrams/README.md). Kaynaklar `docs/diagrams/*.mmd` (Mermaid); `tests/design.lua` diyagramlardaki her sınıfın, her yöntemin ve her kalıtım/arayüz okunun kodda olduğunu, koddaki her sınıfın bir diyagramda bulunduğunu ve desenlerin davranışını sınar.
+
+Lua'da sınıf ve arayüz yoktur; `core/oop.lua` ikisini ekler (`Class`, `Interface`, `implements`). Bir sınıf arayüzünün bir yöntemini eksik bırakırsa eklenti yüklenirken hata verir.
+
+| Desen | Sınıflar | Ne için |
+|---|---|---|
+| Strategy | `TravelMode` (`FixedMode`, `WalkMode`, `FlightMode`), `ExplorationOrder` (`CheapestFirst`, `DearestFirst`, `InsertionOrder`, `Shuffled`), `ScoringRule` (`SingleTarget`, `WholeChain`), `Goal` (`QuestTourGoal`, `RouteGoal`, `FlightNetworkGoal`, `FsmCoverageGoal`) | süre hesabı, keşif sırası, zincir puanı, planın türü |
+| Template Method | `AtlasSolver.solve`: `explore`, `score`, `choose`, `append` | Atlas turu |
+| Observer | `Observable`, `AtlasSolver` ("round", "covered") | oyun her turda kareyi bırakır |
+| Factory | `TravelGraphFactory`, `ExplorationOrders` | karakterin grafı, 16 keşif sırası |
+| Adapter | `ForeverMap`, `RetailSnapshot` (`WorldSource`), `FsmGraphAdapter` | iki veri kaynağı tek bir `World`'e; test makineleri `TravelGraph`'a |
+| Facade | `AtlasPlan` | arayüzlerin kullandığı tek giriş |
+| Command | `Command`, `CommandRegistry` | `/ar` komutları (iki eklenti de) |
+| Registry | `TravelModes` | kip adından stratejiye |
+
+SOLID: her sınıfın tek işi vardır (izin `Gated`'da, süre `TravelMode`'da, algoritma `AtlasSolver`'da, ne kapsanacağı `Goal`'de); yeni yolculuk biçimi, keşif sırası, plan türü, komut ya da veri kaynağı eklemek `AtlasSolver`'ı değiştirmez; stratejiler birbirinin yerine geçer (testle); arayüzler küçüktür (1–3 yöntem); çözücü yalnızca soyutlamalara bağlıdır, oyunu ve WoW API'sini bilmez.
+
 ## Atlas ile planlama (`core/atlasplan.lua`)
 
 ### Graf
@@ -217,6 +236,18 @@ Retail testleri (oyunun tabloları ve taklit edilmiş 12.x API'si ile):
 luajit tests/retail.lua
 ```
 
+Tasarım testleri (diyagramlar kodla aynı mı, desenler çalışıyor mu):
+
+```bash
+luajit tests/design.lua
+```
+
+Diyagramların PDF'i ve GitHub sayfası (`playwright-core`, `mermaid` ve Chromium gerekir; yolları ortam değişkenleriyle verilir):
+
+```bash
+PLAYWRIGHT_CORE=<...>/playwright-core MERMAID=<...>/mermaid.min.js CHROME=<chromium> node docs/diagrams/pdf.mjs
+```
+
 Karşılaştırma yöntemlerinin testleri ve ölçümler:
 
 ```bash
@@ -255,10 +286,17 @@ Rastgele FSM üretmek: `luajit tools/gen_fsm.lua <durum> <girdi> <çıktı> <toh
 AtlasRoute/            eklenti (WoW'a kopyalanacak klasör)
   AtlasRoute.toc       Forever
   AtlasRoute_Mainline.toc  retail (ücretsiz deneme sürümü)
+  core/oop.lua         Class, Interface, implements
+  core/events.lua      Observable (Observer)
   core/fsm.lua         Atlas'ın graf yapısı, .fsm okuyucu, Java HashSet sırası
   core/atlas.lua       Atlas'ın birebir Lua karşılığı
-  core/world.lua       çok kipli dünya grafı
-  core/atlasplan.lua   Atlas ile planlama: görev turu, tek rota, uçuş ağı
+  core/world.lua       dünya modeli: World, Place, TravelEdge, Teleport, Gated, Profile,
+                       TravelMode stratejileri ve TravelModes, WorldSource
+  core/graph.lua       TravelGraph, ExplorationOrder stratejileri, TravelGraphFactory, FsmGraphAdapter
+  core/solver.lua      AtlasSolver (Template Method, Observable), ScoringRule stratejileri
+  core/goals.lua       Goal stratejileri, QuestLog, LegAssembler, AtlasPlanner
+  core/atlasplan.lua   AtlasPlan cephesi: görev turu, tek rota, uçuş ağı
+  core/commands.lua    Command, CommandRegistry
   core/retail.lua      retail: oyunun verisinden dünya grafı ve görev durakları
   data/                Forever haritası ve gerçek Classic görevleri;
                        retail_taxi.lua, retail_quests.lua: oyunun tablolarından üretildi
@@ -269,7 +307,9 @@ benchmark/             yalnızca ölçüt: Dijkstra, Held-Karp, Çinli ve Kırsa
                        testleri ve bench.lua (eklentide yok)
 web/                   Wayfarer's Atlas tanıtım sayfası ve Lua köprüsü
 reference/             Atlas'ın Java koduna bağlantı + RefMain.java (karşılaştırma için)
-tests/                 testler ve Java çıktıları; retail.lua: retail testleri
+tests/                 testler ve Java çıktıları; retail.lua: retail testleri;
+                       design.lua: diyagramlar ile kod, desenlerin davranışı
+docs/                  sınıf diyagramları: PDF, Mermaid kaynakları (diagrams/), pdf.mjs
 tools/                 yükleyici, ölçüm, Java karşılaştırması, FSM üretici, komut satırı demosu;
                        extract_retail.py: retail verisini oyunun tablolarından üretir
 ```

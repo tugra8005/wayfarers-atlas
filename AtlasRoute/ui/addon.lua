@@ -252,11 +252,8 @@ end
 
 SLASH_ATLASROUTE1 = "/ar"
 SLASH_ATLASROUTE2 = "/atlasroute"
-SlashCmdList.ATLASROUTE = function(msg)
-  local cmd, rest = (msg or ""):match("^%s*(%S*)%s*(.-)%s*$")
-  local f = commands[(cmd or ""):lower()] or commands.help
-  f(rest or "")
-end
+local registry = ns.CommandRegistry.fromTable(commands)
+SlashCmdList.ATLASROUTE = function(msg) registry:dispatch(msg) end
 
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
@@ -264,6 +261,6 @@ loader:SetScript("OnEvent", function(_, _, name)
   if name ~= addonName then return end
   AtlasRouteDB = AtlasRouteDB or {}
   AtlasRouteDB.quests = AtlasRouteDB.quests or {}
-  world = ns.WorldData.build(World)
+  world = ns.ForeverMap.new():build()
   ns.world = world
 end)
